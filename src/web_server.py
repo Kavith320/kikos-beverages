@@ -34,7 +34,7 @@ def load_config():
             with open(CONFIG_PATH, 'r') as f:
                 return json.load(f)
         except: pass
-    return {"idle": "", "mappings": {}}
+    return {"idle": "", "mappings": {}, "aliases": {}}
 
 def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
@@ -74,7 +74,6 @@ def delete_video():
     path = os.path.join(VIDEO_FOLDER, filename)
     if os.path.exists(path):
         os.remove(path)
-        # Cleanup config
         config = load_config()
         if config["idle"] == filename: config["idle"] = ""
         config["mappings"] = {k: v for k, v in config["mappings"].items() if v != filename}
@@ -85,7 +84,7 @@ def delete_video():
 @app.route('/api/update-mapping', methods=['POST'])
 def update_mapping():
     data = request.json
-    key = data.get('key') # e.g. "1", "2"
+    key = data.get('key')
     filename = data.get('filename')
     is_idle = data.get('is_idle', False)
     
@@ -124,21 +123,22 @@ def dashboard():
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Display Control Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kikos Control Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #050508;
-            --surface: #101015;
-            --surface-accent: #1a1a24;
+            --bg: #030305;
+            --surface: #0a0a0f;
+            --surface-accent: #11111a;
             --accent: #00d4ff;
-            --accent-glow: rgba(0, 212, 255, 0.3);
+            --accent-glow: rgba(0, 212, 255, 0.4);
             --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --danger: #ff4d6d;
+            --text-secondary: #8c8c9e;
+            --danger: #ff3e5e;
+            --success: #22c55e;
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             background-color: var(--bg);
             color: var(--text-primary);
@@ -146,35 +146,78 @@ def dashboard():
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Layout Structure */
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
             display: flex;
             flex-direction: column;
+            gap: 20px;
         }
+        
         header {
-            padding: 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding-bottom: 20px;
             border-bottom: 1px solid rgba(255,255,255,0.05);
+            flex-wrap: wrap;
+            gap: 15px;
         }
-        .logo-group { display: flex; align-items: center; gap: 15px; }
-        .logo-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
-        h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.5px; }
         
-        main { flex: 1; padding: 40px; max-width: 1400px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; gap: 40px; }
+        .logo-group { display: flex; align-items: center; gap: 12px; }
+        .logo-dot { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 15px var(--accent-glow); }
+        h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.5px; }
+
+        .header-actions { display: flex; align-items: center; gap: 12px; }
         
+        /* Main Grid system */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content { grid-template-columns: 1fr; }
+            header { flex-direction: column; align-items: flex-start; }
+            .header-actions { width: 100%; justify-content: space-between; }
+        }
+
+        /* Cards */
         .card { 
             background: var(--surface);
-            border-radius: 24px;
-            padding: 32px;
-            border: 1px solid rgba(255,255,255,0.05);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
         }
-        .card h2 { font-size: 1.1rem; color: var(--text-secondary); margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+        .card h2 { font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 0; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         
+        /* Idle Section */
+        .idle-banner {
+            background: linear-gradient(90deg, #0a0a0f 0%, #11111a 100%);
+            border-radius: 20px;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(0,212,255,0.2);
+            margin-bottom: 20px;
+        }
+        .idle-info h3 { margin: 0; font-size: 0.8rem; color: var(--accent); opacity: 0.8; }
+        .idle-info p { margin: 5px 0 0; font-size: 1.1rem; font-weight: 600; }
+
+        /* Key Grid */
         .shortcut-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
         }
         .key-slot {
             background: var(--surface-accent);
@@ -182,132 +225,144 @@ def dashboard():
             padding: 20px;
             text-align: center;
             border: 1px solid rgba(255,255,255,0.05);
-            transition: 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             position: relative;
-            overflow: hidden;
         }
-        .key-slot:hover { border-color: var(--accent); background: rgba(0,212,255,0.05); }
-        .key-slot.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
-        .key-tag { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 1.2rem; display: block; margin-bottom: 8px; color: var(--accent); }
-        .key-file { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-        
-        .media-library { display: grid; gap: 12px; }
+        .key-slot:hover { transform: translateY(-5px); border-color: var(--accent); background: rgba(0,212,255,0.05); }
+        .key-slot.active { border-color: var(--accent); box-shadow: 0 5px 20px var(--accent-glow); }
+        .key-num { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 1.5rem; color: var(--accent); display: block; }
+        .key-file { font-size: 0.75rem; color: var(--text-secondary); margin-top: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Library list */
+        .library-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; padding-right: 5px; }
+        .library-list::-webkit-scrollbar { width: 4px; }
+        .library-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
         .media-item {
-            display: flex; align-items: center; gap: 16px;
-            padding: 16px; background: var(--surface-accent); border-radius: 12px;
-            border: 1px solid transparent; transition: 0.2s;
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px; background: rgba(255,255,255,0.02); border-radius: 12px;
+            border: 1px solid transparent; cursor: pointer; transition: 0.2s;
         }
-        .media-item:hover { border-color: rgba(255,255,255,0.1); }
-        .media-info { flex: 1; min-width: 0; }
-        .media-name { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; }
-        .media-actions { display: flex; gap: 8px; }
-        
+        .media-item:hover { background: rgba(255,255,255,0.05); }
+        .media-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.05); }
+        .media-meta { flex: 1; min-width: 0; }
+        .media-name { font-weight: 500; font-size: 0.9rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .media-tag { font-size: 0.7rem; color: var(--text-secondary); }
+
+        /* Buttons */
         .btn {
             background: rgba(255,255,255,0.05);
-            color: white;
+            color: #fff;
             border: none;
-            padding: 10px 18px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.9rem;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-family: inherit; font-weight: 600; font-size: 0.85rem;
+            cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; gap: 8px;
         }
-        .btn:hover { background: rgba(255,255,255,0.12); }
-        .btn-accent { background: var(--accent); color: #000; }
-        .btn-accent:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-danger { color: var(--danger); }
-        
-        .badge { background: var(--accent); color: black; font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; }
-        .status-pill { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.9rem; }
-        
-        #unassign-btn { 
-            position: absolute; top: 5px; right: 8px; color: var(--danger); 
-            font-size: 1.2rem; cursor: pointer; display: none;
+        .btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.02); }
+        .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
+        .btn-sm { padding: 6px 10px; font-size: 0.75rem; }
+        .btn-danger { color: var(--danger); background: rgba(255,62,94,0.1); }
+        .btn-danger:hover { background: rgba(255,62,94,0.2); }
+
+        /* Modals */
+        .modal-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            display: none; place-items: center; z-index: 2000; padding: 20px;
         }
-        .key-slot:hover #unassign-btn { display: block; }
-        
-        .modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-            display: none; place-items: center; z-index: 1000;
+        .modal-content { 
+            background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px 30px; border-radius: 28px; width: 100%; max-width: 440px; text-align: center;
         }
-        .modal-card { background: var(--surface); padding: 40px; border-radius: 32px; width: 400px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        
-        .idle-section { margin-bottom: 40px; padding: 24px; border-radius: 20px; background: linear-gradient(135deg, #101015 0%, #1a1a24 100%); border: 1px solid rgba(255,255,255,0.05); }
+
+        /* Responsive Mobile tweaks */
+        @media (max-width: 480px) {
+            .page-container { padding: 15px; }
+            .shortcut-grid { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 1.1rem; }
+            .card { padding: 18px; }
+        }
+
+        /* Animations */
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        .sync-active { animation: pulse 1s infinite; }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo-group">
-            <div class="logo-dot"></div>
-            <h1>Smart Control Console</h1>
-        </div>
-        <div class="status-pill">
-            <button class="btn btn-accent" style="margin-right: 15px; padding: 6px 12px; font-size: 0.8rem;" onclick="applyChanges()">Apply Changes</button>
-            <span id="ip-addr">--</span>
-            <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
-        </div>
-    </header>
-
-    <main>
-        <section>
-            <div class="idle-section">
-                <h2 style="color: var(--accent); font-size: 1rem; margin-top: 0;">Main Idle Screen</h2>
-                <div style="display:flex; justify-content: space-between; align-items:center;">
-                    <div id="idle-status" style="font-size: 1.2rem; font-weight: 600;">--</div>
-                    <span class="badge">ALWAYS ON</span>
+    <div class="page-container">
+        <header>
+            <div class="logo-group">
+                <div class="logo-dot"></div>
+                <h1>Kikos Beverages Console</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">
+                    <span>Apply Changes</span>
+                </button>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); background: var(--surface-accent); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span id="ip-addr">--</span>
                 </div>
             </div>
+        </header>
 
-            <div class="card">
-                <h2>Keyboard Mapping Hub</h2>
-                <div class="shortcut-grid" id="key-grid">
-                    <!-- Key slots generated here -->
+        <main class="main-content">
+            <section class="config-view">
+                <div class="idle-banner">
+                    <div class="idle-info">
+                        <h3>ACTIVE IDLE SCREEN</h3>
+                        <p id="idle-display">Loading...</p>
+                    </div>
+                    <button class="btn btn-sm" style="border: 1px solid var(--accent); color: var(--accent);" onclick="setIdleFromSelected()">Set Selected</button>
                 </div>
-            </div>
-        </section>
 
-        <aside>
-            <div class="card" style="height: 100%; display: flex; flex-direction: column;">
-                <h2>Media Library</h2>
-                <button class="btn btn-accent" style="width: 100%; margin-bottom: 20px;" onclick="document.getElementById('file-input').click()">+ Upload New Media</button>
-                <input type="file" id="file-input" style="display:none;" onchange="uploadMedia(this.files[0])">
-                
-                <div class="media-library" id="library">
-                    <!-- Files generated here -->
+                <div class="card">
+                    <h2>Keyboard Matrix Assignments</h2>
+                    <div class="shortcut-grid" id="key-grid">
+                        <!-- slots -->
+                    </div>
                 </div>
-            </div>
-        </aside>
-    </main>
+            </section>
 
-    <div id="assign-modal" class="modal">
-        <div class="modal-card">
-            <div class="key-tag" id="target-key-label" style="font-size: 3rem;">1</div>
-            <p style="color: var(--text-secondary); margin-bottom: 30px;">Assign video to this shortcut key?</p>
-            <p id="target-file-label" style="font-weight: 500; font-size: 1.2rem; color: var(--accent);"></p>
-            <div style="display: flex; gap: 10px; margin-top: 40px;">
-                <button class="btn" style="flex:1" onclick="closeModal()">Cancel</button>
-                <button class="btn btn-accent" style="flex:1" id="confirm-assign">Assign Key</button>
+            <aside class="library-view">
+                <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
+                    <h2>Media Library</h2>
+                    <button class="btn btn-accent" style="width: 100%; justify-content: center;" onclick="document.getElementById('file-input').click()">+ Upload Video</button>
+                    <input type="file" id="file-input" style="display:none;" onchange="uploadMedia(this.files[0])">
+                    
+                    <div class="library-list" id="library">
+                        <!-- items -->
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <div id="assign-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="key-num" id="target-key-display" style="font-size: 4rem; margin-bottom: 10px;">1</div>
+            <div style="color: var(--text-secondary); margin-bottom: 25px;">Mapping to Video</div>
+            <div id="target-file-name" style="font-size: 1.2rem; font-weight: 600; color: var(--accent);">--</div>
+            <div style="display: flex; gap: 12px; margin-top: 40px;">
+                <button class="btn" style="flex:1; justify-content: center;" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-accent" style="flex:1; justify-content: center;" id="confirm-map">Confirm</button>
             </div>
         </div>
     </div>
 
     <script>
-        let currentState = {};
         let selectedFile = null;
 
         async function refresh() {
             const res = await fetch('/api/status');
             const data = await res.json();
-            currentState = data;
             
             document.getElementById('ip-addr').innerText = data.system.ip;
-            document.getElementById('idle-status').innerText = data.config.idle || "No Video Assigned";
+            document.getElementById('idle-display').innerText = data.config.idle || "Not Assigned";
             
             renderGrid(data.config);
-            renderLibrary(data.media, data.config);
+            renderLibrary(data.media);
         }
 
         function renderGrid(config) {
@@ -318,69 +373,80 @@ def dashboard():
                 const div = document.createElement('div');
                 div.className = `key-slot ${file ? 'active' : ''}`;
                 div.innerHTML = `
-                    <span class="key-tag">${i}</span>
-                    <span class="key-file">${file || 'Empty'}</span>
-                    ${file ? `<span id="unassign-btn" onclick="removeMapping('${i}', event)">&times;</span>` : ''}
+                    <span class="key-num">${i}</span>
+                    <span class="key-file">${file || '—'}</span>
                 `;
-                div.onclick = () => startAssignment(i);
+                div.onclick = () => startMapping(i);
                 grid.appendChild(div);
             }
         }
 
-        function renderLibrary(media, config) {
+        function renderLibrary(media) {
             const lib = document.getElementById('library');
             lib.innerHTML = media.map(file => `
-                <div class="media-item" onclick="selectedFile='${file}'; document.querySelectorAll('.media-item').forEach(e=>e.style.borderColor='transparent'); this.style.borderColor='var(--accent)'">
-                    <div class="media-info">
+                <div class="media-item ${selectedFile === file ? 'selected' : ''}" onclick="selectFile('${file}')">
+                    <div class="media-meta">
                         <span class="media-name">${file}</span>
-                        <span style="font-size:0.7rem; color:var(--text-secondary)">Video File</span>
+                        <span class="media-tag">Video Content</span>
                     </div>
-                    <div class="media-actions">
-                        <button class="btn" onclick="setIdle('${file}')" title="Set as Idle">🏠</button>
-                        <button class="btn btn-danger" onclick="deleteVideo('${file}')">&times;</button>
-                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="deleteVideo('${file}', event)">&times;</button>
                 </div>
             `).join('');
         }
 
-        function startAssignment(key) {
-            if (!selectedFile) return alert("Select a video from the library first!");
-            document.getElementById('target-key-label').innerText = key;
-            document.getElementById('target-file-label').innerText = selectedFile;
+        function selectFile(file) {
+            selectedFile = file;
+            document.querySelectorAll('.media-item').forEach(e => {
+                e.classList.toggle('selected', e.innerText.includes(file));
+            });
+            renderLibrary(currentState.media); // simple hack
+        }
+
+        async function applyChanges() {
+            const btn = document.getElementById('sync-btn');
+            btn.classList.add('sync-active');
+            btn.innerText = "Syncing...";
+            
+            await fetch('/api/apply', { method: 'POST' });
+            
+            setTimeout(() => {
+                btn.classList.remove('sync-active');
+                btn.innerText = "Apply Changes";
+                refresh();
+            }, 800);
+        }
+
+        function startMapping(key) {
+            if (!selectedFile) {
+                alert("Please select a video from the library first!");
+                return;
+            }
+            document.getElementById('target-key-display').innerText = key;
+            document.getElementById('target-file-name').innerText = selectedFile;
             document.getElementById('assign-modal').style.display = 'grid';
-            document.getElementById('confirm-assign').onclick = () => doAssign(key, selectedFile);
+            document.getElementById('confirm-map').onclick = async () => {
+                await fetch('/api/update-mapping', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key, filename: selectedFile})
+                });
+                closeModal();
+                refresh();
+            };
         }
 
-        async function doAssign(key, filename) {
+        async function setIdleFromSelected() {
+            if (!selectedFile) return alert("Select a video first!");
             await fetch('/api/update-mapping', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({key, filename})
+                body: JSON.stringify({filename: selectedFile, is_idle: true})
             });
-            closeModal();
             refresh();
         }
 
-        async function removeMapping(key, e) {
+        async function deleteVideo(filename, e) {
             e.stopPropagation();
-            await fetch('/api/remove-mapping', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({key})
-            });
-            refresh();
-        }
-
-        async function setIdle(filename) {
-            await fetch('/api/update-mapping', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename, is_idle: true})
-            });
-            refresh();
-        }
-
-        async function deleteVideo(filename) {
             if (!confirm(`Delete ${filename}?`)) return;
             await fetch('/api/delete', {
                 method: 'POST',
@@ -398,14 +464,14 @@ def dashboard():
         }
 
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
-
-        async function applyChanges() {
-            await fetch('/api/apply', { method: 'POST' });
-            alert("App Refreshed Successfully!");
+        
+        let currentState = { media: [] };
+        async function init() {
+            const res = await fetch('/api/status');
+            currentState = await res.json();
             refresh();
         }
-
-        refresh();
+        init();
     </script>
 </body>
 </html>
@@ -414,7 +480,6 @@ def dashboard():
 def run_server(update_callback=None, port=3000):
     global on_update_callback
     on_update_callback = update_callback
-    print(f"[SERVER] Admin Console active at http://0.0.0.0:{port}")
     app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 if __name__ == "__main__":
