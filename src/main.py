@@ -71,6 +71,11 @@ class SmartDisplayApp(QMainWindow):
         # Setup reload signal
         self.config_updated.connect(self._on_remote_config_update)
         
+        # Setup Live Mirror Heartbeat (Capture every 2s)
+        self.mirror_timer = QTimer(self)
+        self.mirror_timer.timeout.connect(self.capture_frame)
+        self.mirror_timer.start(2000)
+        
         # Boot sequence: Show logo
         if "logo" in self.screens:
             self.stacked_widget.setCurrentWidget(self.screens["logo"])
@@ -260,6 +265,22 @@ class SmartDisplayApp(QMainWindow):
             self.fade_anim.finished.connect(lambda: QTimer.singleShot(500, self.show_ip_notification))
             
         self.fade_anim.start()
+
+    def capture_frame(self):
+        """Captures a snapshot for the web mirror."""
+        try:
+            pixmap = self.grab()
+            # Downscale for extreme efficiency
+            pixmap = pixmap.scaled(480, 270, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.FastTransformation)
+            
+            from PySide6.QtCore import QBuffer, QIODevice
+            buffer = QBuffer()
+            buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            pixmap.save(buffer, "JPG", 50) # 50% quality for low-latency
+            
+            import web_server
+            web_server.latest_screenshot = buffer.data().data()
+        except: pass
 
     def _on_media_status_changed(self, status, screen_id):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:

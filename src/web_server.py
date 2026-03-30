@@ -22,8 +22,9 @@ ALLOWED_EXTENSIONS = {'mp4', 'mov', 'mkv', 'avi'}
 if not os.path.exists(VIDEO_FOLDER):
     os.makedirs(VIDEO_FOLDER)
 
-# Global callback to signal the GUI app
+# Global states
 on_update_callback = None
+latest_screenshot = None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -103,6 +104,14 @@ def apply_config():
         on_update_callback()
         return jsonify({"success": True, "message": "System sync initiated"})
     return jsonify({"error": "GUI not connected"}), 503
+
+@app.route('/api/mirror', methods=['GET'])
+def get_mirror():
+    if latest_screenshot:
+        from flask import Response
+        return Response(latest_screenshot, mimetype='image/jpeg')
+    # Fallback to logo if no capture yet
+    return send_from_directory(os.path.join(BASE_DIR, "assets"), "logo.png")
 
 @app.route('/api/remove-mapping', methods=['POST'])
 def remove_mapping():
@@ -317,6 +326,13 @@ def dashboard():
                     <button class="btn btn-sm" style="border: 1px solid var(--accent); color: var(--accent);" onclick="setIdleFromSelected()">Set Selected</button>
                 </div>
 
+                <div class="card" style="padding: 10px; border-color: var(--accent); overflow: hidden;">
+                    <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden;">
+                        <img id="live-monitor" src="/api/mirror" style="width: 100%; height: 100%; object-fit: contain;">
+                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,0,0,0.8); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px;">LIVE MONITOR</div>
+                    </div>
+                </div>
+
                 <div class="card">
                     <h2>Keyboard Matrix Assignments</h2>
                     <div class="shortcut-grid" id="key-grid">
@@ -415,6 +431,12 @@ def dashboard():
                 refresh();
             }, 800);
         }
+
+        // Live Mirror Heartbeat
+        setInterval(() => {
+            const img = document.getElementById('live-monitor');
+            if (img) img.src = "/api/mirror?t=" + Date.now();
+        }, 2000);
 
         function startMapping(key) {
             if (!selectedFile) {
