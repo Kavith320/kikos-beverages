@@ -267,20 +267,25 @@ class SmartDisplayApp(QMainWindow):
         self.fade_anim.start()
 
     def capture_frame(self):
-        """Captures a snapshot for the web mirror."""
+        """Robustly captures the entire physical screen for the mirror."""
         try:
-            pixmap = self.grab()
-            # Downscale for extreme efficiency
+            # Capture the absolute physical screen (captures hardware video overlays)
+            screen = QApplication.primaryScreen()
+            if not screen: return
+            
+            pixmap = screen.grabWindow(0) # 0 = entire screen
+            # Downscale for low-latency web playback
             pixmap = pixmap.scaled(480, 270, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.FastTransformation)
             
             from PySide6.QtCore import QBuffer, QIODevice
             buffer = QBuffer()
             buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-            pixmap.save(buffer, "JPG", 50) # 50% quality for low-latency
+            pixmap.save(buffer, "JPG", 50)
             
             import web_server
             web_server.latest_screenshot = buffer.data().data()
-        except: pass
+        except Exception as e:
+            print(f"[MIRROR] Capture error: {e}")
 
     def _on_media_status_changed(self, status, screen_id):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
