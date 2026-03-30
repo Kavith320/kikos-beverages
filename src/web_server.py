@@ -121,6 +121,21 @@ def get_stream():
     from flask import Response
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/api/trigger', methods=['POST'])
+def trigger_video():
+    global current_playing
+    key = request.json.get('key')
+    
+    # Update state immediately for UI feedback
+    current_playing = str(key)
+    
+    if on_update_callback:
+        # We'll hijack the callback to pass a key trigger
+        # The main app needs to handle this specific string format
+        on_update_callback(f"TRIGGER:{key}")
+        return jsonify({"success": True})
+    return jsonify({"error": "GUI not connected"}), 503
+
 @app.route('/api/remove-mapping', methods=['POST'])
 def remove_mapping():
     key = request.json.get('key')

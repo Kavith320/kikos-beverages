@@ -14,7 +14,7 @@ from web_server import run_server
 
 class SmartDisplayApp(QMainWindow):
     # Signal to handle UI updates from the Flask thread safely
-    config_updated = Signal()
+    config_updated = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -119,12 +119,17 @@ class SmartDisplayApp(QMainWindow):
             screen_id = f"custom_{key}"
             self._add_video_screen(screen_id, filename, f"Video: {filename}\nBound to: {key}", "#002244", loop=False)
 
-    def _on_remote_config_update(self):
-        """Called when the web server signals a configuration change."""
-        print("[REMOTE] Configuration update received! Reloading...")
+    @Slot(str)
+    def _on_remote_config_update(self, signal_data=""):
+        """Called when web signals a config change or manual trigger."""
+        if signal_data.startswith("TRIGGER:"):
+            key = signal_data.split(":")[1]
+            if key == "idle": self.switch_to_screen("idle")
+            else: self.switch_to_screen(f"custom_{key}")
+            return
+
+        print("[REMOTE] Configuration reload requested...")
         self._load_and_setup_media()
-        
-        # If we were on a screen that might no longer exist or changed, go to idle
         if self.current_screen_id != "logo":
             self.switch_to_screen("idle")
 
@@ -256,7 +261,9 @@ class SmartDisplayApp(QMainWindow):
             
         # Update Web Server State
         import web_server
-        web_server.current_playing = self.current_screen_id.replace("custom_", "")
+        # Strip prefixes for cross-system syncing
+        clean_id = self.current_screen_id.replace("custom_", "")
+        web_server.current_playing = clean_id
             
         self.fade_anim = QPropertyAnimation(self.overlay_opacity, b"opacity")
         self.fade_anim.setDuration(400)
