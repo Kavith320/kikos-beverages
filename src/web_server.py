@@ -33,12 +33,17 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def load_config():
+    config = {"idle": "", "mappings": {}, "aliases": {}, "audio": {"volume": 1.0, "device": ""}}
     if os.path.exists(CONFIG_PATH):
         try:
             with open(CONFIG_PATH, 'r') as f:
-                return json.load(f)
+                disk_config = json.load(f)
+                config.update(disk_config)
+                # Ensure nested audio exists even if disk_config updated
+                if "audio" not in config:
+                    config["audio"] = {"volume": 1.0, "device": ""}
         except: pass
-    return {"idle": "", "mappings": {}, "aliases": {}, "audio": {"volume": 1.0, "device": ""}}
+    return config
 
 def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
@@ -149,6 +154,8 @@ def update_audio():
     device = data.get('device')
     
     config = load_config()
+    if "audio" not in config: config["audio"] = {"volume": 1.0, "device": ""}
+    
     if volume is not None:
         config["audio"]["volume"] = float(volume) / 100.0
     if device is not None:
