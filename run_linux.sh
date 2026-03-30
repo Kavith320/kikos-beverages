@@ -17,6 +17,10 @@ export XAUTHORITY=${XAUTHORITY:-/home/$USER/.Xauthority}
 export LIBVA_DRIVER_NAME=i965
 export QT_VIDEO_BACKEND=ffmpeg
 
+# FFmpeg analytical depth for H.264 stability
+export FFMPEG_ANALYZEDURATION=10000000
+export FFMPEG_PROBESIZE=50000000
+
 # Automatically use the best platform (xcb or wayland)
 unset QT_QPA_PLATFORM
 

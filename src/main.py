@@ -107,6 +107,8 @@ class SmartDisplayApp(QMainWindow):
         else:
             config = {"idle": "idle.mp4", "mappings": {}}
         
+        # Save to self for global access
+        self.config = config
         self.mappings = config.get("mappings", {})
         idle_file = config.get("idle", "idle.mp4")
         
