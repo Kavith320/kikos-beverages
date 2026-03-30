@@ -25,6 +25,7 @@ if not os.path.exists(VIDEO_FOLDER):
 # Global states
 on_update_callback = None
 latest_screenshot = None
+current_playing = "idle"
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -52,6 +53,7 @@ def get_status():
     return jsonify({
         "config": config,
         "media": all_files,
+        "current_playing": current_playing,
         "system": {
             "os": os.uname().sysname,
             "ip": socket.gethostbyname(socket.gethostname())
@@ -302,7 +304,16 @@ def dashboard():
 
         /* Animations */
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes breathing { 
+            0% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); border-color: var(--accent); }
+            50% { box-shadow: 0 0 30px rgba(0, 212, 255, 1); border-color: #fff; }
+            100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); border-color: var(--accent); } 
+        }
         .sync-active { animation: pulse 1s infinite; }
+        .is-playing { animation: breathing 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1.05) !important; z-index: 5; }
+        
+        .playing-badge { background: #fff; color: #000; font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-top: 8px; display: none; }
+        .is-playing .playing-badge { display: inline-block; }
     </style>
 </head>
 <body>
@@ -324,9 +335,9 @@ def dashboard():
 
         <main class="main-content">
             <section class="config-view">
-                <div class="idle-banner">
+                <div class="idle-banner" id="idle-banner-wrap">
                     <div class="idle-info">
-                        <h3>ACTIVE IDLE SCREEN</h3>
+                        <h3>ACTIVE IDLE SCREEN <span class="playing-badge" style="margin-left: 10px;">IDLE ACTIVE</span></h3>
                         <p id="idle-display">Loading...</p>
                     </div>
                     <button class="btn btn-sm" style="border: 1px solid var(--accent); color: var(--accent);" onclick="setIdleFromSelected()">Set Selected</button>
@@ -381,22 +392,31 @@ def dashboard():
             const data = await res.json();
             
             document.getElementById('ip-addr').innerText = data.system.ip;
+            const idleBanner = document.getElementById('idle-banner-wrap');
             document.getElementById('idle-display').innerText = data.config.idle || "Not Assigned";
             
-            renderGrid(data.config);
+            if (data.current_playing === 'idle') {
+                idleBanner.classList.add('is-playing');
+            } else {
+                idleBanner.classList.remove('is-playing');
+            }
+            
+            renderGrid(data.config, data.current_playing);
             renderLibrary(data.media);
         }
 
-        function renderGrid(config) {
+        function renderGrid(config, currentPlaying) {
             const grid = document.getElementById('key-grid');
             grid.innerHTML = '';
             for (let i = 1; i <= 9; i++) {
                 const file = config.mappings[i];
+                const active = String(currentPlaying) === String(i);
                 const div = document.createElement('div');
-                div.className = `key-slot ${file ? 'active' : ''}`;
+                div.className = `key-slot ${file ? 'active' : ''} ${active ? 'is-playing' : ''}`;
                 div.innerHTML = `
                     <span class="key-num">${i}</span>
                     <span class="key-file">${file || '—'}</span>
+                    <span class="playing-badge">PLAYING NOW</span>
                 `;
                 div.onclick = () => startMapping(i);
                 grid.appendChild(div);

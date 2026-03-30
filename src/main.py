@@ -254,6 +254,10 @@ class SmartDisplayApp(QMainWindow):
                 self.players[self.current_screen_id].setPosition(0)
             self.players[self.current_screen_id].play()
             
+        # Update Web Server State
+        import web_server
+        web_server.current_playing = self.current_screen_id.replace("custom_", "")
+            
         self.fade_anim = QPropertyAnimation(self.overlay_opacity, b"opacity")
         self.fade_anim.setDuration(400)
         self.fade_anim.setStartValue(1.0)
