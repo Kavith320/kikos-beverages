@@ -4,5 +4,4 @@ __pycache__/
 *.zip
 *.conf
 /videos/
-/assets/*.png
 src/plugins/
