@@ -361,6 +361,18 @@ def dashboard():
         .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px; background: #222; outline: none; }
         .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 10px var(--accent-glow); }
         select { background: #111; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 8px; font-family: inherit; width: 100%; cursor: pointer; outline: none; }
+        
+        /* VU Meter Styles */
+        .vu-meter { height: 12px; background: #111; border-radius: 6px; display: flex; gap: 2px; padding: 2px; overflow: hidden; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); }
+        .vu-segment { flex: 1; height: 100%; border-radius: 2px; background: #222; transition: all 0.1s ease; }
+        .vu-active { box-shadow: 0 0 10px var(--accent-glow); }
+        
+        @keyframes vu-pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        .anim-pulse { animation: vu-pulse 0.15s infinite alternate; }
     </style>
 </head>
 <body>
@@ -414,6 +426,13 @@ def dashboard():
                             <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
                             
                             <div style="margin-top: 5px;">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Audio Gain Monitor</div>
+                                <div class="vu-meter" id="vu-meter">
+                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                                </div>
                                 <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Output Device</div>
                                 <select id="audio-out" onchange="changeAudioDevice(this.value)">
                                     <!-- devices -->
@@ -468,6 +487,8 @@ def dashboard():
                 const select = document.getElementById('audio-out');
                 const currentVal = select.value;
                 select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
+                
+                updateVUMeter(data.audio.volume, data.current_playing);
             }
 
             if (data.current_playing === 'idle') {
@@ -589,6 +610,32 @@ def dashboard():
             form.append('video', file);
             await fetch('/api/upload', { method: 'POST', body: form });
             refresh();
+        }
+
+        function updateVUMeter(volume, currentPlaying) {
+            const segments = document.querySelectorAll('.vu-segment');
+            const isActive = currentPlaying !== 'idle' && currentPlaying !== 'logo';
+            const threshold = Math.floor((volume / 100) * segments.length);
+            
+            segments.forEach((s, i) => {
+                const color = i < segments.length * 0.6 ? '#00ffaa' : (i < segments.length * 0.85 ? '#ffcc00' : '#ff3300');
+                if (i < threshold) {
+                    s.style.background = color;
+                    s.style.boxShadow = `0 0 8px ${color}66`;
+                    if (isActive) {
+                        s.classList.add('anim-pulse');
+                        s.style.animationDelay = (i * 0.02) + "s";
+                    } else {
+                        s.classList.remove('anim-pulse');
+                        s.style.opacity = "0.4";
+                    }
+                } else {
+                    s.style.background = '#222';
+                    s.style.boxShadow = 'none';
+                    s.classList.remove('anim-pulse');
+                    s.style.opacity = "1";
+                }
+            });
         }
 
         async function changeVolume(val) {
