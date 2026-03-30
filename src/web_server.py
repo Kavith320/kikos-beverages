@@ -481,6 +481,9 @@ def dashboard():
             }
         }, 5000);
 
+        // High-Speed Status Heartbeat (Glow Sync)
+        setInterval(refresh, 1000);
+
         function startMapping(key) {
             if (!selectedFile) {
                 alert("Please select a video from the library first!");
