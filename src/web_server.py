@@ -98,6 +98,13 @@ def update_mapping():
     save_config(config)
     return jsonify({"success": True})
 
+@app.route('/api/apply', methods=['POST'])
+def apply_config():
+    if on_update_callback:
+        on_update_callback()
+        return jsonify({"success": True, "message": "System sync initiated"})
+    return jsonify({"error": "GUI not connected"}), 503
+
 @app.route('/api/remove-mapping', methods=['POST'])
 def remove_mapping():
     key = request.json.get('key')
@@ -238,6 +245,7 @@ def dashboard():
             <h1>Smart Control Console</h1>
         </div>
         <div class="status-pill">
+            <button class="btn btn-accent" style="margin-right: 15px; padding: 6px 12px; font-size: 0.8rem;" onclick="applyChanges()">Apply Changes</button>
             <span id="ip-addr">--</span>
             <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
         </div>
@@ -390,6 +398,12 @@ def dashboard():
         }
 
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
+
+        async function applyChanges() {
+            await fetch('/api/apply', { method: 'POST' });
+            alert("App Refreshed Successfully!");
+            refresh();
+        }
 
         refresh();
     </script>
