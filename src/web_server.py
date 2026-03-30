@@ -105,13 +105,19 @@ def apply_config():
         return jsonify({"success": True, "message": "System sync initiated"})
     return jsonify({"error": "GUI not connected"}), 503
 
-@app.route('/api/mirror', methods=['GET'])
-def get_mirror():
-    if latest_screenshot:
-        from flask import Response
-        return Response(latest_screenshot, mimetype='image/jpeg')
-    # Fallback to logo if no capture yet
-    return send_from_directory(os.path.join(BASE_DIR, "assets"), "logo.png")
+def gen_frames():
+    """MJPEG Streaming Generator"""
+    import time
+    while True:
+        if latest_screenshot:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + latest_screenshot + b'\r\n')
+        time.sleep(0.08) # ~12fps max
+
+@app.route('/api/stream')
+def get_stream():
+    from flask import Response
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/api/remove-mapping', methods=['POST'])
 def remove_mapping():
@@ -328,8 +334,8 @@ def dashboard():
 
                 <div class="card" style="padding: 10px; border-color: var(--accent); overflow: hidden;">
                     <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden;">
-                        <img id="live-monitor" src="/api/mirror" style="width: 100%; height: 100%; object-fit: contain;">
-                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,0,0,0.8); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px;">LIVE MONITOR</div>
+                        <img id="live-monitor" src="/api/stream" style="width: 100%; height: 100%; object-fit: contain;">
+                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,0,0,0.8); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px;">REAL-TIME MIRROR</div>
                     </div>
                 </div>
 
@@ -432,11 +438,13 @@ def dashboard():
             }, 800);
         }
 
-        // Live Mirror Heartbeat
+        // Live Mirror Connection Guard (Reconnects if dropped)
         setInterval(() => {
             const img = document.getElementById('live-monitor');
-            if (img) img.src = "/api/mirror?t=" + Date.now();
-        }, 2000);
+            if (img && (!img.complete || img.naturalWidth === 0)) {
+                img.src = "/api/stream?t=" + Date.now();
+            }
+        }, 5000);
 
         function startMapping(key) {
             if (!selectedFile) {

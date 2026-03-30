@@ -71,10 +71,10 @@ class SmartDisplayApp(QMainWindow):
         # Setup reload signal
         self.config_updated.connect(self._on_remote_config_update)
         
-        # Setup Live Mirror Heartbeat (Capture every 2s)
+        # Setup Live Mirror Heartbeat (Capture every 100ms = 10fps)
         self.mirror_timer = QTimer(self)
         self.mirror_timer.timeout.connect(self.capture_frame)
-        self.mirror_timer.start(2000)
+        self.mirror_timer.start(100)
         
         # Boot sequence: Show logo
         if "logo" in self.screens:
