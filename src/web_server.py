@@ -49,7 +49,7 @@ def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
     if on_update_callback:
-        on_update_callback()
+        on_update_callback("")
 
 # --- API ENDPOINTS ---
 
