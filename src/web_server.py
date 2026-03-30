@@ -26,6 +26,8 @@ if not os.path.exists(VIDEO_FOLDER):
 on_update_callback = None
 latest_screenshot = None
 current_playing = "idle"
+audio_devices = []
+current_volume = 100
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -54,6 +56,10 @@ def get_status():
         "config": config,
         "media": all_files,
         "current_playing": current_playing,
+        "audio": {
+            "devices": audio_devices,
+            "volume": current_volume
+        },
         "system": {
             "os": os.uname().sysname,
             "ip": socket.gethostbyname(socket.gethostname())
@@ -133,6 +139,20 @@ def trigger_video():
         # We'll hijack the callback to pass a key trigger
         # The main app needs to handle this specific string format
         on_update_callback(f"TRIGGER:{key}")
+        return jsonify({"success": True})
+    return jsonify({"error": "GUI not connected"}), 503
+
+@app.route('/api/audio', methods=['POST'])
+def update_audio():
+    data = request.json
+    volume = data.get('volume')
+    device = data.get('device')
+    
+    if on_update_callback:
+        if volume is not None:
+            on_update_callback(f"TRIGGER:volume:{float(volume)/100.0}")
+        if device is not None:
+            on_update_callback(f"TRIGGER:device:{device}")
         return jsonify({"success": True})
     return jsonify({"error": "GUI not connected"}), 503
 
@@ -329,6 +349,11 @@ def dashboard():
         
         .playing-badge { background: #fff; color: #000; font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-top: 8px; display: none; }
         .is-playing .playing-badge { display: inline-block; }
+        /* Audio Slider Custom Styles */
+        .audio-control { display: flex; flex-direction: column; gap: 15px; margin-bottom: 24px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px; background: #222; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 10px var(--accent-glow); }
+        select { background: #111; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 8px; font-family: inherit; width: 100%; cursor: pointer; outline: none; }
     </style>
 </head>
 <body>
@@ -365,8 +390,26 @@ def dashboard():
                     </div>
                 </div>
 
-                <div class="card">
-                    <h2>Keyboard Matrix Assignments</h2>
+                    <div class="card">
+                        <h2>Audio Control Center</h2>
+                        <div class="audio-control">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
+                                <span>Master Volume</span>
+                                <span id="vol-value">100%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
+                            
+                            <div style="margin-top: 5px;">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Output Device</div>
+                                <select id="audio-out" onchange="changeAudioDevice(this.value)">
+                                    <!-- devices -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Keyboard Matrix Assignments</h2>
                     <div class="shortcut-grid" id="key-grid">
                         <!-- slots -->
                     </div>
@@ -410,6 +453,16 @@ def dashboard():
             const idleBanner = document.getElementById('idle-banner-wrap');
             document.getElementById('idle-display').innerText = data.config.idle || "Not Assigned";
             
+            // Audio Sync
+            if (data.audio) {
+                document.getElementById('vol-slider').value = data.audio.volume;
+                document.getElementById('vol-value').innerText = data.audio.volume + "%";
+                
+                const select = document.getElementById('audio-out');
+                const currentVal = select.value;
+                select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
+            }
+
             if (data.current_playing === 'idle') {
                 idleBanner.classList.add('is-playing');
             } else {
@@ -529,6 +582,23 @@ def dashboard():
             form.append('video', file);
             await fetch('/api/upload', { method: 'POST', body: form });
             refresh();
+        }
+
+        async function changeVolume(val) {
+            document.getElementById('vol-value').innerText = val + "%";
+            await fetch('/api/audio', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({volume: val})
+            });
+        }
+
+        async function changeAudioDevice(val) {
+            await fetch('/api/audio', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({device: val})
+            });
         }
 
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }

@@ -6,7 +6,7 @@ import threading
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QStackedWidget, QGraphicsOpacityEffect, QFrame
 from PySide6.QtCore import Qt, QUrl, QTimer, QPropertyAnimation, QPoint, QEasingCurve, Signal, Slot
 from PySide6.QtGui import QFont, QPixmap
-from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaDevices
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
 # Import our web server logic
@@ -70,6 +70,7 @@ class SmartDisplayApp(QMainWindow):
         
         # Setup reload signal
         self.config_updated.connect(self._on_remote_config_update)
+        self._refresh_audio_devices()
         
         # Setup Live Mirror Heartbeat (Capture every 100ms = 10fps)
         self.mirror_timer = QTimer(self)
@@ -121,17 +122,49 @@ class SmartDisplayApp(QMainWindow):
 
     @Slot(str)
     def _on_remote_config_update(self, signal_data=""):
-        """Called when web signals a config change or manual trigger."""
+        """Called when web signals a config change, manual trigger, or audio update."""
         if signal_data.startswith("TRIGGER:"):
-            key = signal_data.split(":")[1]
-            if key == "idle": self.switch_to_screen("idle")
-            else: self.switch_to_screen(f"custom_{key}")
+            cmd = signal_data.split(":")[1]
+            val = signal_data.split(":")[2] if len(signal_data.split(":")) > 2 else None
+            
+            if cmd == "idle": self.switch_to_screen("idle")
+            elif cmd == "volume" and val: self._set_global_volume(float(val))
+            elif cmd == "device" and val: self._set_audio_device(val)
+            else: self.switch_to_screen(f"custom_{cmd}")
             return
 
         print("[REMOTE] Configuration reload requested...")
         self._load_and_setup_media()
         if self.current_screen_id != "logo":
             self.switch_to_screen("idle")
+
+    def _refresh_audio_devices(self):
+        """Broadcasts available audio hardware to the web console."""
+        import web_server
+        devices = QMediaDevices.audioOutputs()
+        web_server.audio_devices = [d.description() for d in devices]
+        
+    def _set_global_volume(self, level):
+        """Sets the volume (0.0 to 1.0) across all players."""
+        for player in self.players.values():
+            if hasattr(player, 'audioOutput'):
+                player.audioOutput().setVolume(level)
+        import web_server
+        web_server.current_volume = int(level * 100)
+
+    def _set_audio_device(self, device_name):
+        """Switches the output hardware for all active media players."""
+        target_device = None
+        for d in QMediaDevices.audioOutputs():
+            if d.description() == device_name:
+                target_device = d
+                break
+        
+        if target_device:
+            print(f"[AUDIO] Switching to hardware: {device_name}")
+            for player in self.players.values():
+                if hasattr(player, 'audioOutput'):
+                    player.audioOutput().setDevice(target_device)
 
     def _create_logo_screen(self):
         widget = QWidget()
