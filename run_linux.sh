@@ -21,4 +21,19 @@ export QT_VIDEO_BACKEND=ffmpeg
 unset QT_QPA_PLATFORM
 
 echo "--- Unified Bootstrap: Display & Web Console ---"
-python src/main.py
+
+while true; do
+    echo "[SYSTEM] Launching Display Engine..."
+    python src/main.py
+    EXIT_CODE=$?
+    
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "[CLOSED] Application closed normally. Exiting loop."
+        break
+    elif [ $EXIT_CODE -eq 8 ]; then
+        echo "[RESTART] Remote Reboot Signal Received. Hot-restarting..."
+    else
+        echo "[CRASH] App exited with code $EXIT_CODE. Attempting recovery in 2s..."
+        sleep 2
+    fi
+done

@@ -38,7 +38,7 @@ def load_config():
             with open(CONFIG_PATH, 'r') as f:
                 return json.load(f)
         except: pass
-    return {"idle": "", "mappings": {}, "aliases": {}}
+    return {"idle": "", "mappings": {}, "aliases": {}, "audio": {"volume": 1.0, "device": ""}}
 
 def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
@@ -109,8 +109,8 @@ def update_mapping():
 @app.route('/api/apply', methods=['POST'])
 def apply_config():
     if on_update_callback:
-        on_update_callback()
-        return jsonify({"success": True, "message": "System sync initiated"})
+        on_update_callback("TRIGGER:RESTART") # Command for a full process exit
+        return jsonify({"success": True, "message": "System restart initiated"})
     return jsonify({"error": "GUI not connected"}), 503
 
 def gen_frames():
@@ -148,9 +148,16 @@ def update_audio():
     volume = data.get('volume')
     device = data.get('device')
     
+    config = load_config()
+    if volume is not None:
+        config["audio"]["volume"] = float(volume) / 100.0
+    if device is not None:
+        config["audio"]["device"] = device
+    save_config(config)
+
     if on_update_callback:
         if volume is not None:
-            on_update_callback(f"TRIGGER:volume:{float(volume)/100.0}")
+            on_update_callback(f"TRIGGER:volume:{config['audio']['volume']}")
         if device is not None:
             on_update_callback(f"TRIGGER:device:{device}")
         return jsonify({"success": True})

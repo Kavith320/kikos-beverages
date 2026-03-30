@@ -70,6 +70,7 @@ class SmartDisplayApp(QMainWindow):
         
         # Setup reload signal
         self.config_updated.connect(self._on_remote_config_update)
+        # Refresh current hardware to server
         self._refresh_audio_devices()
         
         # Setup Live Mirror Heartbeat (Capture every 100ms = 10fps)
@@ -120,16 +121,27 @@ class SmartDisplayApp(QMainWindow):
             screen_id = f"custom_{key}"
             self._add_video_screen(screen_id, filename, f"Video: {filename}\nBound to: {key}", "#002244", loop=False)
 
+        # 3. Apply Persistent Audio Config from JSON
+        audio_conf = self.config.get("audio", {"volume": 1.0, "device": ""})
+        self._set_global_volume(audio_conf.get("volume", 1.0))
+        dev = audio_conf.get("device", "")
+        if dev: self._set_audio_device(dev)
+
     @Slot(str)
     def _on_remote_config_update(self, signal_data=""):
         """Called when web signals a config change, manual trigger, or audio update."""
         if signal_data.startswith("TRIGGER:"):
-            cmd = signal_data.split(":")[1]
-            val = signal_data.split(":")[2] if len(signal_data.split(":")) > 2 else None
+            parts = signal_data.split(":")
+            cmd = parts[1]
+            val = parts[2] if len(parts) > 2 else None
             
             if cmd == "idle": self.switch_to_screen("idle")
             elif cmd == "volume" and val: self._set_global_volume(float(val))
             elif cmd == "device" and val: self._set_audio_device(val)
+            elif cmd == "RESTART": 
+                print("[SYSTEM] Full process restart signal received.")
+                QApplication.exit(8) # Signal code 8 for bash restart
+                return
             else: self.switch_to_screen(f"custom_{cmd}")
             return
 
