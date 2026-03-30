@@ -1,0 +1,8 @@
+.DS_Store
+.venv/
+__pycache__/
+*.zip
+*.conf
+/videos/
+/assets/*.png
+src/plugins/

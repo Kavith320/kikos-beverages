@@ -1,0 +1,6 @@
+PySide6>=6.7.0
+pyserial
+pillow
+Flask
+Flask-CORS
+Flask-SocketIO

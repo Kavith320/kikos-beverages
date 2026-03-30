@@ -1,0 +1,15 @@
+{
+    "idle": "p2.mp4",
+    "aliases": {
+        "p1.mp4": "Premium Product A",
+        "p2.mp4": "Premium Product B",
+        "p3.mp4": "Premium Product C",
+        "p4.mp4": "Premium Product D"
+    },
+    "mappings": {
+        "1": "p1.mp4",
+        "2": "p2.mp4",
+        "3": "p3.mp4",
+        "4": "p4.mp4"
+    }
+}
