@@ -369,9 +369,9 @@ def dashboard():
         .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 10px var(--accent-glow); }
         select { background: #111; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 8px; font-family: inherit; width: 100%; cursor: pointer; outline: none; }
         
-        /* VU Meter Styles */
         .vu-meter { height: 12px; background: #111; border-radius: 6px; display: flex; gap: 2px; padding: 2px; overflow: hidden; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); }
-        .vu-segment { flex: 1; height: 100%; border-radius: 2px; background: #222; transition: all 0.1s ease; }
+        .vu-meter-v { width: 12px; height: 100%; background: #111; border-radius: 6px; display: flex; flex-direction: column-reverse; gap: 2px; padding: 2px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .vu-segment { flex: 1; border-radius: 2px; background: #222; transition: all 0.1s ease; }
         .vu-active { box-shadow: 0 0 10px var(--accent-glow); }
         
         @keyframes vu-pulse {
@@ -409,10 +409,21 @@ def dashboard():
                     <button class="btn btn-sm" style="border: 1px solid var(--accent); color: var(--accent);" onclick="setIdleFromSelected()">Set Selected</button>
                 </div>
 
-                <div class="card" style="padding: 10px; border-color: var(--accent); overflow: hidden;">
-                    <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden;">
-                        <img id="live-monitor" src="/api/stream" style="width: 100%; height: 100%; object-fit: contain;">
-                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,0,0,0.8); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px;">REAL-TIME MIRROR</div>
+                <div class="card" style="padding: 15px; border-color: var(--accent); overflow: hidden;">
+                    <div style="display: flex; gap: 15px; height: 100%; align-items: stretch;">
+                        <!-- Vertical VU Meter -->
+                        <div class="vu-meter-v" id="vu-meter-v">
+                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                        </div>
+                        
+                        <div style="position: relative; flex: 1; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden;">
+                            <img id="live-monitor" src="/api/stream" style="width: 100%; height: 100%; object-fit: contain;">
+                            <div style="position: absolute; top: 10px; left: 10px; background: rgba(212,0,255,0.8); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px;">LIVE COMMAND CENTER</div>
+                        </div>
                     </div>
                 </div>
 
@@ -620,29 +631,35 @@ def dashboard():
         }
 
         function updateVUMeter(volume, currentPlaying) {
-            const segments = document.querySelectorAll('.vu-segment');
+            const hSegments = document.querySelectorAll('#vu-meter .vu-segment');
+            const vSegments = document.querySelectorAll('#vu-meter-v .vu-segment');
             const isActive = currentPlaying !== 'idle' && currentPlaying !== 'logo';
-            const threshold = Math.floor((volume / 100) * segments.length);
             
-            segments.forEach((s, i) => {
-                const color = i < segments.length * 0.6 ? '#00ffaa' : (i < segments.length * 0.85 ? '#ffcc00' : '#ff3300');
-                if (i < threshold) {
-                    s.style.background = color;
-                    s.style.boxShadow = `0 0 8px ${color}66`;
-                    if (isActive) {
-                        s.classList.add('anim-pulse');
-                        s.style.animationDelay = (i * 0.02) + "s";
+            function updateSet(segments) {
+                const threshold = Math.floor((volume / 100) * segments.length);
+                segments.forEach((s, i) => {
+                    const color = i < segments.length * 0.6 ? '#00ffaa' : (i < segments.length * 0.85 ? '#ffcc00' : '#ff3300');
+                    if (i < threshold) {
+                        s.style.background = color;
+                        s.style.boxShadow = `0 0 8px ${color}66`;
+                        if (isActive) {
+                            s.classList.add('anim-pulse');
+                            s.style.animationDelay = (i * 0.02) + "s";
+                        } else {
+                            s.classList.remove('anim-pulse');
+                            s.style.opacity = "0.4";
+                        }
                     } else {
+                        s.style.background = '#222';
+                        s.style.boxShadow = 'none';
                         s.classList.remove('anim-pulse');
-                        s.style.opacity = "0.4";
+                        s.style.opacity = "1";
                     }
-                } else {
-                    s.style.background = '#222';
-                    s.style.boxShadow = 'none';
-                    s.classList.remove('anim-pulse');
-                    s.style.opacity = "1";
-                }
-            });
+                });
+            }
+
+            updateSet(hSegments);
+            updateSet(vSegments);
         }
 
         async function changeVolume(val) {
