@@ -27,6 +27,10 @@ class SmartDisplayApp(QMainWindow):
         self.assets_folder = os.path.join(base_dir, "assets")
         self.config_path = os.path.join(base_dir, "config", "media_config.json")
         
+        # Audio/State Consistency
+        self.current_volume = 1.0 # 0.0 to 1.0
+        self.target_audio_device = ""
+        
         self.stacked_widget = QStackedWidget(self)
         self.setCentralWidget(self.stacked_widget)
         
@@ -112,6 +116,11 @@ class SmartDisplayApp(QMainWindow):
         self.mappings = config.get("mappings", {})
         idle_file = config.get("idle", "idle.mp4")
         
+        # Apply Base Audio State from Config
+        audio_conf = self.config.get("audio", {})
+        self.current_volume = audio_conf.get("volume", 1.0)
+        self.target_audio_device = audio_conf.get("device", "")
+        
         # 0. Always create/re-create Logo screen
         self._create_logo_screen()
         
@@ -123,11 +132,10 @@ class SmartDisplayApp(QMainWindow):
             screen_id = f"custom_{key}"
             self._add_video_screen(screen_id, filename, f"Video: {filename}\nBound to: {key}", "#002244", loop=False)
 
-        # 3. Apply Persistent Audio Config from JSON
-        audio_conf = self.config.get("audio", {"volume": 1.0, "device": ""})
-        self._set_global_volume(audio_conf.get("volume", 1.0))
-        dev = audio_conf.get("device", "")
-        if dev: self._set_audio_device(dev)
+        # 3. Synchronize Web Server Visuals
+        import web_server
+        web_server.current_volume = int(self.current_volume * 100)
+        web_server.audio_devices = [d.description() for d in QMediaDevices.audioOutputs()]
 
     @Slot(str)
     def _on_remote_config_update(self, signal_data=""):
@@ -160,6 +168,8 @@ class SmartDisplayApp(QMainWindow):
         
     def _set_global_volume(self, level):
         """Sets the volume (0.0 to 1.0) across all players."""
+        self.current_volume = level
+        print(f"[AUDIO] Volume sync: {int(level*100)}%")
         for player in self.players.values():
             if hasattr(player, 'audioOutput'):
                 player.audioOutput().setVolume(level)
@@ -168,6 +178,7 @@ class SmartDisplayApp(QMainWindow):
 
     def _set_audio_device(self, device_name):
         """Switches the output hardware for all active media players."""
+        self.target_audio_device = device_name
         target_device = None
         for d in QMediaDevices.audioOutputs():
             if d.description() == device_name:
@@ -175,7 +186,7 @@ class SmartDisplayApp(QMainWindow):
                 break
         
         if target_device:
-            print(f"[AUDIO] Switching to hardware: {device_name}")
+            print(f"[AUDIO] Speaker Switch: {device_name}")
             for player in self.players.values():
                 if hasattr(player, 'audioOutput'):
                     player.audioOutput().setDevice(target_device)
@@ -258,6 +269,14 @@ class SmartDisplayApp(QMainWindow):
             player.setAudioOutput(audio_output)
             audio_output.setVolume(1.0)
             player.setSource(QUrl.fromLocalFile(video_path))
+            
+            # Apply Persistent Audio settings to the new player
+            audio_output.setVolume(self.current_volume)
+            if self.target_audio_device:
+                for d in QMediaDevices.audioOutputs():
+                    if d.description() == self.target_audio_device:
+                        audio_output.setDevice(d)
+                        break
             
             if loop:
                 player.setLoops(-1)
