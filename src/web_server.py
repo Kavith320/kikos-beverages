@@ -398,6 +398,13 @@ def dashboard():
                 </div>
 
                     <div class="card">
+                        <h2>Keyboard Matrix Assignments</h2>
+                        <div class="shortcut-grid" id="key-grid">
+                            <!-- slots -->
+                        </div>
+                    </div>
+
+                    <div class="card">
                         <h2>Audio Control Center</h2>
                         <div class="audio-control">
                             <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
@@ -414,13 +421,6 @@ def dashboard():
                             </div>
                         </div>
                     </div>
-
-                    <div class="card">
-                        <h2>Keyboard Matrix Assignments</h2>
-                    <div class="shortcut-grid" id="key-grid">
-                        <!-- slots -->
-                    </div>
-                </div>
             </section>
 
             <aside class="library-view">
