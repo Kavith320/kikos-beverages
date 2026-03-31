@@ -218,6 +218,31 @@ def remove_mapping():
         return jsonify({"success": True})
     return jsonify({"error": "Not mapped"}), 400
 
+@app.route('/api/update-system', methods=['POST'])
+@login_required
+def update_system():
+    import subprocess
+    try:
+        # 1. Pull latest code
+        pull_res = subprocess.run(["git", "pull", "origin", "main"], 
+                                 capture_output=True, text=True, check=True)
+        
+        # 2. Trigger restart via the main app callback
+        # This will exit the python process, and run_linux.sh will restart it.
+        if on_update_callback:
+            on_update_callback("TRIGGER:RESTART")
+            return jsonify({
+                "success": True, 
+                "message": "System updated & restarting...",
+                "git_output": pull_res.stdout
+            })
+        return jsonify({"success": True, "message": "Updated, but GUI not connected to restart."})
+        
+    except subprocess.CalledProcessError as e:
+        return jsonify({"success": False, "error": f"Git pull failed: {e.stderr}"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # --- STATIC CONTENT ---
 
 @app.route('/login')
@@ -439,6 +464,9 @@ def dashboard():
                 <h1>Kikos Beverages Console</h1>
             </div>
             <div class="header-actions">
+                <button class="btn btn-sm" style="background: #2563eb; color: #fff;" id="update-btn" onclick="updateSystem()">
+                    <span id="update-icon">↑</span> Check Updates
+                </button>
                 <a href="/api/logout" class="btn btn-danger btn-sm">Logout</a>
                 <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">
                     <span>Apply Changes</span>
@@ -632,6 +660,36 @@ def dashboard():
 
         // High-Speed Status Heartbeat (Glow Sync)
         setInterval(refresh, 1000);
+
+        async function updateSystem() {
+            if (!confirm("Pull latest code and restart the system?")) return;
+            
+            const btn = document.getElementById('update-btn');
+            const icon = document.getElementById('update-icon');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            icon.innerText = '⌛';
+            
+            try {
+                const res = await fetch('/api/update-system', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert("Update Successful! System is restarting...");
+                    location.reload();
+                } else {
+                    alert("Update Failed: " + data.error);
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    icon.innerText = '↑';
+                }
+            } catch (err) {
+                alert("Network error occurred.");
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                icon.innerText = '↑';
+            }
+        }
 
         function startMapping(key) {
             if (!selectedFile) {
