@@ -2,8 +2,9 @@ import os
 import json
 import socket
 import logging
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
+from functools import wraps
 from werkzeug.utils import secure_filename
 
 # Disable verbose logging to keep terminal clean
@@ -11,7 +12,22 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
-CORS(app)
+# Use a consistent secret key for sessions
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "kikos-beverages-smart-display-v4")
+CORS(app, supports_credentials=True)
+
+# Admin credentials
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            if request.path.startswith('/api/'):
+                return jsonify({"error": "Unauthorized"}), 401
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # --- DIRECTORY SETUP ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -53,7 +69,21 @@ def save_config(config):
 
 # --- API ENDPOINTS ---
 
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    password = request.json.get('password')
+    if password == ADMIN_PASSWORD:
+        session['logged_in'] = True
+        return jsonify({"success": True})
+    return jsonify({"success": False}), 401
+
+@app.route('/api/logout')
+def api_logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login_page'))
+
 @app.route('/api/status', methods=['GET'])
+@login_required
 def get_status():
     config = load_config()
     all_files = [f for f in os.listdir(VIDEO_FOLDER) if allowed_file(f)]
@@ -72,6 +102,7 @@ def get_status():
     })
 
 @app.route('/api/upload', methods=['POST'])
+@login_required
 def upload_video():
     if 'video' not in request.files:
         return jsonify({"error": "No file"}), 400
@@ -83,6 +114,7 @@ def upload_video():
     return jsonify({"error": "Invalid format"}), 400
 
 @app.route('/api/delete', methods=['POST'])
+@login_required
 def delete_video():
     filename = request.json.get('filename')
     path = os.path.join(VIDEO_FOLDER, filename)
@@ -96,6 +128,7 @@ def delete_video():
     return jsonify({"error": "Not found"}), 404
 
 @app.route('/api/update-mapping', methods=['POST'])
+@login_required
 def update_mapping():
     data = request.json
     key = data.get('key')
@@ -112,6 +145,7 @@ def update_mapping():
     return jsonify({"success": True})
 
 @app.route('/api/apply', methods=['POST'])
+@login_required
 def apply_config():
     if on_update_callback:
         on_update_callback("TRIGGER:RESTART") # Command for a full process exit
@@ -128,11 +162,13 @@ def gen_frames():
         time.sleep(0.08) # ~12fps max
 
 @app.route('/api/stream')
+@login_required
 def get_stream():
     from flask import Response
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/api/trigger', methods=['POST'])
+@login_required
 def trigger_video():
     global current_playing
     key = request.json.get('key')
@@ -148,6 +184,7 @@ def trigger_video():
     return jsonify({"error": "GUI not connected"}), 503
 
 @app.route('/api/audio', methods=['POST'])
+@login_required
 def update_audio():
     data = request.json
     volume = data.get('volume')
@@ -171,6 +208,7 @@ def update_audio():
     return jsonify({"error": "GUI not connected"}), 503
 
 @app.route('/api/remove-mapping', methods=['POST'])
+@login_required
 def remove_mapping():
     key = request.json.get('key')
     config = load_config()
@@ -182,7 +220,17 @@ def remove_mapping():
 
 # --- STATIC CONTENT ---
 
+@app.route('/login')
+def login_page():
+    try:
+        login_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "login.html")
+        with open(login_path, 'r') as f:
+            return f.read()
+    except Exception as e:
+        return f"Error loading login page: {str(e)}", 500
+
 @app.route('/')
+@login_required
 def dashboard():
     return """
 <!DOCTYPE html>
@@ -326,6 +374,7 @@ def dashboard():
             font-family: inherit; font-weight: 600; font-size: 0.85rem;
             cursor: pointer; transition: 0.2s;
             display: flex; align-items: center; gap: 8px;
+            text-decoration: none;
         }
         .btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.02); }
         .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
@@ -390,6 +439,7 @@ def dashboard():
                 <h1>Kikos Beverages Console</h1>
             </div>
             <div class="header-actions">
+                <a href="/api/logout" class="btn btn-danger btn-sm">Logout</a>
                 <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">
                     <span>Apply Changes</span>
                 </button>
