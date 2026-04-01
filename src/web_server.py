@@ -301,6 +301,11 @@ def dashboard():
         @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        
+        /* Progress Bar */
+        .progress-box { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: none; }
+        .progress-bar-bg { background: rgba(0,0,0,0.3); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .progress-bar-fill { background: var(--accent); height: 100%; width: 0%; box-shadow: 0 0 10px var(--accent-glow); transition: width 0.1s; }
     </style>
 </head>
 <body>
@@ -350,12 +355,23 @@ def dashboard():
         <div class="col card">
             <h2>Media & Audio</h2>
             <div style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="btn btn-accent" style="flex:1;" onclick="document.getElementById('uf').click()">
+                <button class="btn btn-accent" style="flex:1;" id="up-btn" onclick="document.getElementById('uf').click()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    UPLOAD
+                    UPLOAD MEDIA
                 </button>
                 <input type="file" id="uf" style="display:none;" onchange="upload(this.files[0])">
             </div>
+
+            <div id="up-progress" class="progress-box">
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
+                    <span id="up-filename" style="color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis;">video.mp4</span>
+                    <span id="up-pc" style="color:var(--accent); font-weight:bold;">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="up-fill" class="progress-bar-fill"></div>
+                </div>
+            </div>
+
             <div class="media-list" id="mlist" oncontextmenu="return false;"></div>
             <div id="ctx-menu" class="ctx-menu">
                 <div class="ctx-item" onclick="setIdleFromCtx()">
@@ -552,9 +568,48 @@ def dashboard():
         }
 
         async function upload(f) {
-            const formData = new FormData(); formData.append('video', f);
-            await fetch('/api/upload', {method:'POST', body:formData});
-            fetchStatus();
+            if(!f) return;
+            const upBox = document.getElementById('up-progress');
+            const upFill = document.getElementById('up-fill');
+            const upPc = document.getElementById('up-pc');
+            const upName = document.getElementById('up-filename');
+            const upBtn = document.getElementById('up-btn');
+
+            upName.innerText = f.name;
+            upBox.style.display = 'block';
+            upBtn.disabled = true;
+            upBtn.style.opacity = 0.5;
+
+            const formData = new FormData();
+            formData.append('video', f);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload', true);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const pc = Math.round((e.loaded / e.total) * 100);
+                    upFill.style.width = pc + '%';
+                    upPc.innerText = pc + '%';
+                }
+            };
+
+            xhr.onload = () => {
+                upBox.style.display = 'none';
+                upBtn.disabled = false;
+                upBtn.style.opacity = 1;
+                fetchStatus();
+                if(xhr.status !== 200) alert("Upload failed");
+            };
+
+            xhr.onerror = () => {
+                alert("Network error");
+                upBox.style.display = 'none';
+                upBtn.disabled = false;
+                upBtn.style.opacity = 1;
+            };
+
+            xhr.send(formData);
         }
 
         async function setAudio(payload) {
