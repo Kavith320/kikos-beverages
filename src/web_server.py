@@ -216,21 +216,13 @@ def login_page():
             return f.read()
     except: return "Error loading login page", 500
 
-@app.route('/api/thumbnail/<filename>')
+@app.route('/api/restart-gui', methods=['POST'])
 @login_required
-def get_thumbnail(filename):
-    import subprocess
-    thumb_dir = os.path.join(VIDEO_FOLDER, ".thumbnails")
-    try:
-        os.makedirs(thumb_dir, exist_ok=True)
-    except: pass
-    thumb_path = os.path.join(thumb_dir, f"{filename}.jpg")
-    if not os.path.exists(thumb_path):
-        try:
-            subprocess.run(["ffmpeg", "-y", "-i", os.path.join(VIDEO_FOLDER, filename), "-ss", "00:00:01", "-vframes", "1", "-vf", "scale=120:-1", thumb_path], capture_output=True, timeout=2)
-        except: pass
-    if os.path.exists(thumb_path): return send_from_directory(thumb_dir, f"{filename}.jpg")
-    return "<svg viewBox='0 0 120 68'><rect width='100%' height='100%' fill='#111'/></svg>", 200, {'Content-Type': 'image/svg+xml'}
+def restart_gui():
+    if on_update_callback:
+        on_update_callback("TRIGGER:RESTART")
+        return jsonify({"success": True})
+    return jsonify({"error": "GUI not connected"}), 503
 
 @app.route('/')
 @login_required
@@ -293,8 +285,7 @@ def dashboard():
         <div style="display: flex; gap: 12px; align-items: center;">
             <span id="api-status" style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e;"></span>
             <span style="font-size: 0.7rem; color: var(--text-secondary);">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
-            <button class="btn btn-danger" onclick="xFetch('/api/reboot')">REBOOT</button>
-            <button class="btn" onclick="xFetch('/api/update-system')">UPDATE SRC</button>
+            <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')">APPLY & RESTART GUI</button>
             <a href="/api/logout" class="btn btn-danger">ESC</a>
         </div>
     </header>
@@ -374,11 +365,13 @@ def dashboard():
                     m.innerHTML += `<div class="slot ${play}" onclick="mapReq(${i})"><span class="slot-num">${i}</span><span class="slot-file">${f||'—'}</span></div>`;
                 }
 
-                // Library
+                // Library (Using static icons to prevent flickering/reloading lag)
                 const l = document.getElementById('mlist');
                 l.innerHTML = d.media.map(f => `
                     <div class="media-item ${selFile===f?'selected':''}" onclick="sel('${f}')">
-                        <img src="/api/thumbnail/${f}">
+                        <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:var(--accent);">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                        </div>
                         <span style="font-size:0.8rem; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f}</span>
                         <button class="btn btn-danger" style="padding:4px 8px;" onclick="del('${f}', event)">X</button>
                     </div>
@@ -448,9 +441,12 @@ def dashboard():
             return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
         }
 
-        // DELETED AUTO-POLLING: Dashboard only refreshes snapshot and status after user actions.
-        // fetchStatus() now handles the monitor mirror too.
+        // Initial status pull
         fetchStatus();
+        
+        // Auto-Monitor: Refresh the video feed separately so it's not "laggy"
+        // but keep it at a reasonable speed (2fps) to avoid browser overhead.
+        setInterval(fetchSnap, 500); 
     </script>
 </body>
 </html>"""
