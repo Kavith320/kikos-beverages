@@ -294,6 +294,10 @@ def dashboard():
         <div style="display: flex; gap: 12px; align-items: center;">
             <span id="api-status" style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e;"></span>
             <span style="font-size: 0.7rem; color: var(--text-secondary);">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
+            <button class="btn" style="background:rgba(255,255,255,0.08)" onclick="if(confirm('Pull latest code from Cloud and Restart?')) xFetch('/api/update-system')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                GIT UPDATE
+            </button>
             <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
                 APPLY & RESTART
