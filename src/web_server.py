@@ -312,6 +312,16 @@ def dashboard():
         .progress-box { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: none; }
         .progress-bar-bg { background: rgba(0,0,0,0.3); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 8px; }
         .progress-bar-fill { background: var(--accent); height: 100%; width: 0%; box-shadow: 0 0 10px var(--accent-glow); transition: width 0.1s; }
+
+        /* Responsive Design */
+        @media (max-width: 900px) {
+            body { height: auto; overflow-y: auto; padding: 12px; }
+            header { flex-direction: column; gap: 12px; text-align: center; }
+            .grid { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+            .col { min-height: auto; }
+            .card { min-height: 400px; }
+            .monitor-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
