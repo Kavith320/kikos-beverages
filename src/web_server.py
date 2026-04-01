@@ -268,18 +268,23 @@ def dashboard():
     <style>
         :root {
             --bg: #030305;
-            --surface: #0a0a0f;
-            --surface-accent: #11111a;
+            --surface: rgba(10, 10, 15, 0.8);
+            --surface-accent: rgba(20, 20, 30, 0.9);
             --accent: #00d4ff;
-            --accent-glow: rgba(0, 212, 255, 0.4);
+            --accent-glow: rgba(0, 212, 255, 0.3);
             --text-primary: #ffffff;
             --text-secondary: #8c8c9e;
             --danger: #ff3e5e;
             --success: #22c55e;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(0, 212, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(212, 0, 255, 0.05) 0%, transparent 40%);
             color: var(--text-primary);
             font-family: 'Outfit', sans-serif;
             margin: 0;
@@ -288,172 +293,202 @@ def dashboard():
             overflow-x: hidden;
         }
         
-        /* Layout Structure */
         .page-container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 24px;
         }
         
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            flex-wrap: wrap;
-            gap: 15px;
+            padding: 16px 24px;
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
         }
         
         .logo-group { display: flex; align-items: center; gap: 12px; }
-        .logo-dot { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 15px var(--accent-glow); }
-        h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.5px; }
+        .logo-dot { 
+            width: 12px; height: 12px; 
+            background: linear-gradient(135deg, var(--accent), #d400ff); 
+            border-radius: 50%; 
+            box-shadow: 0 0 15px var(--accent-glow); 
+            animation: pulse 2s infinite;
+        }
+        h1 { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -0.5px; opacity: 0.9; }
 
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
-        /* Main Grid system */
-        .main-content {
+        /* Main Dashboard Grid */
+        .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: repeat(12, 1fr);
             gap: 24px;
         }
 
-        @media (max-width: 1024px) {
-            .main-content { grid-template-columns: 1fr; }
-            header { flex-direction: column; align-items: flex-start; }
-            .header-actions { width: 100%; justify-content: space-between; }
-        }
-
-        /* Cards */
+        /* Card Base */
         .card { 
             background: var(--surface);
-            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            border-radius: 24px;
             padding: 24px;
-            border: 1px solid rgba(255,255,255,0.06);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            position: relative;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease, border-color 0.3s ease;
         }
-        .card h2 { font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 0; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .card:hover { border-color: rgba(255,255,255,0.15); }
+        .card h2 { 
+            font-size: 0.8rem; 
+            color: var(--text-secondary); 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            margin-top: 0; 
+            margin-bottom: 24px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            opacity: 0.7;
+        }
         
-        /* Idle Section */
-        .idle-banner {
-            background: linear-gradient(90deg, #0a0a0f 0%, #11111a 100%);
-            border-radius: 20px;
-            padding: 20px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid rgba(0,212,255,0.2);
-            margin-bottom: 20px;
-        }
-        .idle-info h3 { margin: 0; font-size: 0.8rem; color: var(--accent); opacity: 0.8; }
-        .idle-info p { margin: 5px 0 0; font-size: 1.1rem; font-weight: 600; }
+        /* Grid Assignments */
+        .monitor-sect { grid-column: span 8; }
+        .library-sect { grid-column: span 4; grid-row: span 2; }
+        .matrix-sect { grid-column: span 8; }
+        .audio-sect { grid-column: span 4; }
 
-        /* Key Grid */
-        .shortcut-grid {
+        @media (max-width: 1200px) {
+            .monitor-sect, .library-sect, .matrix-sect, .audio-sect { grid-column: span 12; }
+            .library-sect { grid-row: auto; }
+        }
+
+        /* Monitor View */
+        .monitor-wrapper {
+            display: flex; gap: 20px; align-items: stretch;
+        }
+        .monitor-screen {
+            position: relative; flex: 1; aspect-ratio: 16/9; 
+            background: #000; border-radius: 16px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .monitor-screen img { width: 100%; height: 100%; object-fit: contain; }
+        .live-tag {
+            position: absolute; top: 12px; left: 12px;
+            background: rgba(255, 62, 94, 0.8); color: #fff;
+            padding: 4px 10px; border-radius: 6px; font-size: 0.65rem;
+            font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;
+        }
+        .live-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: pulse 1s infinite; }
+
+        /* Idle State */
+        .idle-indicator {
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), transparent);
+            padding: 16px 20px; border-radius: 16px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 3px solid var(--accent);
+        }
+        .idle-label { font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+        .idle-val { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+
+        /* Shortcut Matrix */
+        .matrix-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
         .key-slot {
             background: var(--surface-accent);
-            border-radius: 16px;
-            padding: 20px;
+            border-radius: 20px;
+            padding: 24px;
             text-align: center;
-            border: 1px solid rgba(255,255,255,0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid var(--glass-border);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
             position: relative;
+            overflow: hidden;
         }
-        .key-slot:hover { transform: translateY(-5px); border-color: var(--accent); background: rgba(0,212,255,0.05); }
-        .key-slot.active { border-color: var(--accent); box-shadow: 0 5px 20px var(--accent-glow); }
-        .key-num { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 1.5rem; color: var(--accent); display: block; }
-        .key-file { font-size: 0.75rem; color: var(--text-secondary); margin-top: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        /* Library list */
-        .library-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; padding-right: 5px; }
-        .library-list::-webkit-scrollbar { width: 4px; }
-        .library-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-
-        .media-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 14px; background: rgba(255,255,255,0.02); border-radius: 12px;
-            border: 1px solid transparent; cursor: pointer; transition: 0.2s;
+        .key-slot::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at center, var(--accent-glow), transparent 70%);
+            opacity: 0; transition: opacity 0.3s;
         }
-        .media-item:hover { background: rgba(255,255,255,0.05); }
-        .media-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.05); }
-        .media-meta { flex: 1; min-width: 0; }
-        .media-name { font-weight: 500; font-size: 0.9rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .media-tag { font-size: 0.7rem; color: var(--text-secondary); }
+        .key-slot:hover { transform: translateY(-8px); border-color: var(--accent); }
+        .key-slot:hover::before { opacity: 0.4; }
+        .key-slot.active { border-color: rgba(255,255,255,0.2); }
+        .key-slot.is-playing { 
+            border-color: var(--accent); 
+            box-shadow: 0 0 30px var(--accent-glow);
+            background: rgba(0, 212, 255, 0.1);
+        }
+        .key-num { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 1.8rem; color: var(--accent); position: relative; z-index: 1; }
+        .key-file { font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; }
+
+        /* Library List */
+        .library-container { display: flex; flex-direction: column; gap: 12px; height: calc(100% - 100px); overflow-y: auto; padding-right: 8px; }
+        .library-container::-webkit-scrollbar { width: 5px; }
+        .library-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        .media-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex; align-items: center; gap: 16px;
+            cursor: pointer; transition: 0.2s;
+        }
+        .media-card:hover { background: rgba(255,255,255,0.06); }
+        .media-card.selected { border-color: var(--accent); background: rgba(0, 212, 255, 0.05); }
+        .media-icon { width: 40px; height: 40px; background: #000; border-radius: 10px; display: grid; place-items: center; font-size: 1.2rem; }
+        .media-info { flex: 1; min-width: 0; }
+        .media-title { font-weight: 600; font-size: 0.9rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .media-meta { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+
+        /* Audio Controls */
+        .volume-panel {
+            background: var(--surface-accent);
+            padding: 24px; border-radius: 20px; border: 1px solid var(--glass-border);
+        }
+        .slider-wrap { margin: 20px 0; }
+        .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 8px; background: #1a1a25; outline: none; }
+        .slider::-webkit-slider-thumb { 
+            -webkit-appearance: none; width: 22px; height: 22px; 
+            border-radius: 50%; background: #fff; cursor: pointer; 
+            box-shadow: 0 0 15px rgba(255,255,255,0.5); border: 4px solid var(--accent);
+        }
+        select { background: #000; color: #fff; border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; width: 100%; font-family: inherit; margin-top: 10px; outline: none; }
 
         /* Buttons */
         .btn {
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-family: inherit; font-weight: 600; font-size: 0.85rem;
-            cursor: pointer; transition: 0.2s;
-            display: flex; align-items: center; gap: 8px;
-            text-decoration: none;
+            background: rgba(255,255,255,0.05); color: #fff; border: none; padding: 12px 20px; border-radius: 14px;
+            font-family: inherit; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px;
         }
-        .btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.02); }
-        .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
-        .btn-sm { padding: 6px 10px; font-size: 0.75rem; }
-        .btn-danger { color: var(--danger); background: rgba(255,62,94,0.1); }
-        .btn-danger:hover { background: rgba(255,62,94,0.2); }
+        .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 20px var(--accent-glow); }
+        .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 6px 25px var(--accent-glow); }
+        .btn-danger { color: var(--danger); background: rgba(255, 62, 94, 0.1); border: 1px solid rgba(255, 62, 94, 0.2); }
+        .btn-danger:hover { background: rgba(255, 62, 94, 0.2); }
+        .btn-ghost { background: transparent; border: 1px solid var(--glass-border); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.05); }
 
-        /* Modals */
-        .modal-overlay { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
-            display: none; place-items: center; z-index: 2000; padding: 20px;
-        }
-        .modal-content { 
-            background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
-            padding: 40px 30px; border-radius: 28px; width: 100%; max-width: 440px; text-align: center;
-        }
-
-        /* Responsive Mobile tweaks */
-        @media (max-width: 480px) {
-            .page-container { padding: 15px; }
-            .shortcut-grid { grid-template-columns: repeat(2, 1fr); }
-            h1 { font-size: 1.1rem; }
-            .card { padding: 18px; }
-        }
+        /* Status VU Meter */
+        .vu-meter-v { width: 12px; background: #000; border-radius: 6px; display: flex; flex-direction: column-reverse; gap: 3px; padding: 3px; overflow: hidden; border: 1px solid var(--glass-border); }
+        .vu-segment { height: 6px; border-radius: 2px; background: #1a1a25; transition: 0.1s; }
 
         /* Animations */
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        @keyframes breathing { 
-            0% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); border-color: var(--accent); }
-            50% { box-shadow: 0 0 30px rgba(0, 212, 255, 1); border-color: #fff; }
-            100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); border-color: var(--accent); } 
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.9); } }
+        .is-playing .key-num { animation: pulse 1.5s infinite; }
+        
+        .modal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
+            display: none; place-items: center; z-index: 10000;
         }
-        .sync-active { animation: pulse 1s infinite; }
-        .is-playing { animation: breathing 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1.05) !important; z-index: 5; }
-        
-        .playing-badge { background: #fff; color: #000; font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-top: 8px; display: none; }
-        .is-playing .playing-badge { display: inline-block; }
-        /* Audio Slider Custom Styles */
-        .audio-control { display: flex; flex-direction: column; gap: 15px; margin-bottom: 24px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
-        .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px; background: #222; outline: none; }
-        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 10px var(--accent-glow); }
-        select { background: #111; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 8px; font-family: inherit; width: 100%; cursor: pointer; outline: none; }
-        
-        .vu-meter { height: 12px; background: #111; border-radius: 6px; display: flex; gap: 2px; padding: 2px; overflow: hidden; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); }
-        .vu-meter-v { width: 12px; height: 100%; background: #111; border-radius: 6px; display: flex; flex-direction: column-reverse; gap: 2px; padding: 2px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
-        .vu-segment { flex: 1; border-radius: 2px; background: #222; transition: all 0.1s ease; }
-        .vu-active { box-shadow: 0 0 10px var(--accent-glow); }
-        
-        @keyframes vu-pulse {
-            0% { opacity: 0.3; }
-            50% { opacity: 1; }
-            100% { opacity: 0.3; }
-        }
-        .anim-pulse { animation: vu-pulse 0.15s infinite alternate; }
+        .modal-body { background: var(--surface); border: 1px solid var(--glass-border); padding: 40px; border-radius: 32px; text-align: center; max-width: 400px; }
+
     </style>
 </head>
 <body>
@@ -461,105 +496,100 @@ def dashboard():
         <header>
             <div class="logo-group">
                 <div class="logo-dot"></div>
-                <h1>Kikos Beverages Console</h1>
+                <h1>Kikos Control Center</h1>
             </div>
             <div class="header-actions">
-                <button class="btn btn-sm" style="background: #2563eb; color: #fff;" id="update-btn" onclick="updateSystem()">
-                    <span id="update-icon">↑</span> Check Updates
-                </button>
-                <a href="/api/logout" class="btn btn-danger btn-sm">Logout</a>
-                <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">
-                    <span>Apply Changes</span>
-                </button>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); background: var(--surface-accent); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                    <span id="ip-addr">--</span>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    SYS_IP: <span id="ip-addr" style="color: #fff; font-family: 'JetBrains Mono';">--</span>
                 </div>
+                <button class="btn btn-ghost" id="update-btn" onclick="updateSystem()" style="font-size: 0.8rem;">
+                    Check Updates
+                </button>
+                <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">
+                    Apply Changes
+                </button>
+                <a href="/api/logout" class="btn btn-danger" style="padding: 12px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </a>
             </div>
         </header>
 
-        <main class="main-content">
-            <section class="config-view">
-                <div class="idle-banner" id="idle-banner-wrap">
-                    <div class="idle-info">
-                        <h3>ACTIVE IDLE SCREEN <span class="playing-badge" style="margin-left: 10px;">IDLE ACTIVE</span></h3>
-                        <p id="idle-display">Loading...</p>
+        <main class="dashboard-grid">
+            <div class="card monitor-sect">
+                <h2>Live Display Monitor</h2>
+                <div class="monitor-wrapper">
+                    <div class="vu-meter-v" id="vu-meter-v">
+                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
+                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
                     </div>
-                    <button class="btn btn-sm" style="border: 1px solid var(--accent); color: var(--accent);" onclick="setIdleFromSelected()">Set Selected</button>
-                </div>
-
-                <div class="card" style="padding: 15px; border-color: var(--accent); overflow: hidden;">
-                    <div style="display: flex; gap: 15px; height: 100%; align-items: stretch;">
-                        <!-- Vertical VU Meter -->
-                        <div class="vu-meter-v" id="vu-meter-v">
-                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                            <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                        </div>
-                        
-                        <div style="position: relative; flex: 1; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden;">
-                            <img id="live-monitor" src="/api/stream" style="width: 100%; height: 100%; object-fit: contain;">
-                            <div style="position: absolute; top: 10px; left: 10px; background: rgba(212,0,255,0.8); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px;">LIVE COMMAND CENTER</div>
-                        </div>
+                    <div class="monitor-screen">
+                        <div class="live-tag"><div class="live-dot"></div> LIVE_TX</div>
+                        <img id="live-monitor" src="/api/stream">
                     </div>
                 </div>
+            </div>
 
-                    <div class="card">
-                        <h2>Keyboard Matrix Assignments</h2>
-                        <div class="shortcut-grid" id="key-grid">
-                            <!-- slots -->
+            <div class="card library-sect">
+                <h2>Media Library</h2>
+                <button class="btn btn-accent" style="width: 100%; margin-bottom: 20px; justify-content: center;" onclick="document.getElementById('file-input').click()">
+                    + UPLOAD MEDIA
+                </button>
+                <input type="file" id="file-input" style="display:none;" onchange="uploadMedia(this.files[0])">
+                
+                <div class="library-container" id="library">
+                    <!-- Dynamic Items -->
+                </div>
+                
+                <button class="btn btn-ghost" style="width: 100%; margin-top: 20px; font-size: 0.75rem;" onclick="setIdleFromSelected()">
+                    SET SELECTED AS IDLE
+                </button>
+            </div>
+
+            <div class="card matrix-sect">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <h2>Trigger Matrix Assignments</h2>
+                    <div class="idle-indicator" id="idle-banner-wrap" style="margin-top: -10px;">
+                        <div>
+                            <div class="idle-label">Active Idle</div>
+                            <div class="idle-val" id="idle-display">...</div>
                         </div>
                     </div>
+                </div>
+                <div class="matrix-grid" id="key-grid">
+                    <!-- 1-9 Keys -->
+                </div>
+            </div>
 
-                    <div class="card">
-                        <h2>Audio Control Center</h2>
-                        <div class="audio-control">
-                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
-                                <span>Master Volume</span>
-                                <span id="vol-value">100%</span>
-                            </div>
-                            <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
-                            
-                            <div style="margin-top: 5px;">
-                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Audio Gain Monitor</div>
-                                <div class="vu-meter" id="vu-meter">
-                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                                    <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                                </div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Output Device</div>
-                                <select id="audio-out" onchange="changeAudioDevice(this.value)">
-                                    <!-- devices -->
-                                </select>
-                            </div>
-                        </div>
+            <div class="card audio-sect">
+                <h2>Audio Engine</h2>
+                <div class="volume-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 0.8rem; opacity: 0.6;">Output Gain</span>
+                        <span id="vol-value" style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--accent);">100%</span>
                     </div>
-            </section>
-
-            <aside class="library-view">
-                <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
-                    <h2>Media Library</h2>
-                    <button class="btn btn-accent" style="width: 100%; justify-content: center;" onclick="document.getElementById('file-input').click()">+ Upload Video</button>
-                    <input type="file" id="file-input" style="display:none;" onchange="uploadMedia(this.files[0])">
+                    <div class="slider-wrap">
+                        <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
+                    </div>
                     
-                    <div class="library-list" id="library">
-                        <!-- items -->
+                    <div style="margin-top: 10px;">
+                        <span style="font-size: 0.75rem; opacity: 0.6;">Target Device</span>
+                        <select id="audio-out" onchange="changeAudioDevice(this.value)"></select>
                     </div>
                 </div>
-            </aside>
+            </div>
         </main>
     </div>
 
-    <div id="assign-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="key-num" id="target-key-display" style="font-size: 4rem; margin-bottom: 10px;">1</div>
-            <div style="color: var(--text-secondary); margin-bottom: 25px;">Mapping to Video</div>
-            <div id="target-file-name" style="font-size: 1.2rem; font-weight: 600; color: var(--accent);">--</div>
-            <div style="display: flex; gap: 12px; margin-top: 40px;">
-                <button class="btn" style="flex:1; justify-content: center;" onclick="closeModal()">Cancel</button>
-                <button class="btn btn-accent" style="flex:1; justify-content: center;" id="confirm-map">Confirm</button>
+    <div id="assign-modal" class="modal">
+        <div class="modal-body">
+            <div id="target-key-display" style="font-size: 4rem; font-family: 'JetBrains Mono'; color: var(--accent); line-height: 1;">1</div>
+            <p style="color: var(--text-secondary); margin: 20px 0;">Assigning video to this slot</p>
+            <div id="target-file-name" style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; font-weight: 600;">--</div>
+            <div style="display: flex; gap: 12px; margin-top: 32px;">
+                <button class="btn btn-ghost" style="flex:1; justify-content: center;" onclick="closeModal()">CANCEL</button>
+                <button class="btn btn-accent" style="flex:1; justify-content: center;" id="confirm-map">CONFIRM</button>
             </div>
         </div>
     </div>
@@ -568,134 +598,98 @@ def dashboard():
         let selectedFile = null;
 
         async function refresh() {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            
-            document.getElementById('ip-addr').innerText = data.system.ip;
-            const idleBanner = document.getElementById('idle-banner-wrap');
-            document.getElementById('idle-display').innerText = data.config.idle || "Not Assigned";
-            
-            // Audio Sync
-            if (data.audio) {
-                document.getElementById('vol-slider').value = data.audio.volume;
-                document.getElementById('vol-value').innerText = data.audio.volume + "%";
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
                 
-                const select = document.getElementById('audio-out');
-                const currentVal = select.value;
-                select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
+                document.getElementById('ip-addr').innerText = data.system.ip;
+                document.getElementById('idle-display').innerText = data.config.idle || "EMPTY";
                 
-                updateVUMeter(data.audio.volume, data.current_playing);
-            }
+                if (data.audio) {
+                    document.getElementById('vol-slider').value = data.audio.volume * 100;
+                    document.getElementById('vol-value').innerText = Math.round(data.audio.volume * 100) + "%";
+                    
+                    const select = document.getElementById('audio-out');
+                    if (data.audio.devices.length > 0) {
+                        const currentVal = select.value || data.config.audio.device;
+                        select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
+                    }
+                    updateVUMeter(data.audio.volume, data.current_playing);
+                }
 
-            if (data.current_playing === 'idle') {
-                idleBanner.classList.add('is-playing');
-            } else {
-                idleBanner.classList.remove('is-playing');
-            }
-            
-            renderGrid(data.config, data.current_playing);
-            renderLibrary(data.media);
+                const idleBanner = document.getElementById('idle-banner-wrap');
+                idleBanner.style.borderColor = data.current_playing === 'idle' ? 'var(--accent)' : 'transparent';
+                
+                renderGrid(data.config, data.current_playing);
+                renderLibrary(data.media);
+            } catch(e) {}
         }
 
         function renderGrid(config, currentPlaying) {
             const grid = document.getElementById('key-grid');
-            grid.innerHTML = '';
+            let html = '';
             for (let i = 1; i <= 9; i++) {
                 const file = config.mappings[i];
-                const active = String(currentPlaying) === String(i);
-                const div = document.createElement('div');
-                div.className = `key-slot ${file ? 'active' : ''} ${active ? 'is-playing' : ''}`;
-                div.innerHTML = `
-                    <span class="key-num">${i}</span>
-                    <span class="key-file">${file || '—'}</span>
-                    <span class="playing-badge">PLAYING NOW</span>
+                const isPlaying = String(currentPlaying) === String(i);
+                html += `
+                    <div class="key-slot ${file ? 'active' : ''} ${isPlaying ? 'is-playing' : ''}" onclick="startMapping(${i})">
+                        <span class="key-num">${i}</span>
+                        <span class="key-file">${file || '—'}</span>
+                    </div>
                 `;
-                div.onclick = () => startMapping(i);
-                grid.appendChild(div);
             }
+            grid.innerHTML = html;
         }
 
         function renderLibrary(media) {
             const lib = document.getElementById('library');
             lib.innerHTML = media.map(file => `
-                <div class="media-item ${selectedFile === file ? 'selected' : ''}" onclick="selectFile('${file}')">
-                    <div class="media-meta">
-                        <span class="media-name">${file}</span>
-                        <span class="media-tag">Video Content</span>
+                <div class="media-card ${selectedFile === file ? 'selected' : ''}" onclick="selectFile('${file}')">
+                    <div class="media-icon">🎬</div>
+                    <div class="media-info">
+                        <span class="media-title">${file}</span>
+                        <span class="media-meta">MP4 VIDEO</span>
                     </div>
-                    <button class="btn btn-sm btn-danger" onclick="deleteVideo('${file}', event)">&times;</button>
+                    <button class="btn btn-danger" style="padding: 6px; border-radius: 8px;" onclick="deleteVideo('${file}', event)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                 </div>
             `).join('');
         }
 
         function selectFile(file) {
             selectedFile = file;
-            document.querySelectorAll('.media-item').forEach(e => {
-                e.classList.toggle('selected', e.innerText.includes(file));
-            });
-            renderLibrary(currentState.media); // simple hack
+            refresh();
         }
 
         async function applyChanges() {
             const btn = document.getElementById('sync-btn');
-            btn.classList.add('sync-active');
-            btn.innerText = "Syncing...";
-            
+            btn.innerText = "SYNCING...";
             await fetch('/api/apply', { method: 'POST' });
-            
-            setTimeout(() => {
-                btn.classList.remove('sync-active');
-                btn.innerText = "Apply Changes";
-                refresh();
-            }, 800);
+            setTimeout(() => { btn.innerText = "Apply Changes"; refresh(); }, 1000);
         }
 
-        // Live Mirror Connection Guard (Reconnects if dropped)
-        setInterval(() => {
-            const img = document.getElementById('live-monitor');
-            if (img && (!img.complete || img.naturalWidth === 0)) {
-                img.src = "/api/stream?t=" + Date.now();
-            }
-        }, 5000);
-
-        // High-Speed Status Heartbeat (Glow Sync)
-        setInterval(refresh, 1000);
-
-        async function updateSystem() {
-            if (!confirm("Pull latest code and restart the system?")) return;
+        function updateVUMeter(volume, currentPlaying) {
+            const vSegments = document.querySelectorAll('#vu-meter-v .vu-segment');
+            const isActive = currentPlaying !== 'idle' && currentPlaying !== 'logo';
+            const threshold = Math.floor(volume * vSegments.length);
             
-            const btn = document.getElementById('update-btn');
-            const icon = document.getElementById('update-icon');
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            icon.innerText = '⌛';
-            
-            try {
-                const res = await fetch('/api/update-system', { method: 'POST' });
-                const data = await res.json();
-                
-                if (data.success) {
-                    alert("Update Successful! System is restarting...");
-                    location.reload();
+            vSegments.forEach((s, i) => {
+                if (i < threshold) {
+                    const color = i < vSegments.length * 0.6 ? '#22c55e' : (i < vSegments.length * 0.85 ? '#eab308' : '#ef4444');
+                    s.style.background = color;
+                    s.style.boxShadow = `0 0 10px ${color}44`;
+                    s.style.opacity = isActive ? "1" : "0.3";
                 } else {
-                    alert("Update Failed: " + data.error);
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    icon.innerText = '↑';
+                    s.style.background = '#1a1a25';
+                    s.style.boxShadow = 'none';
+                    s.style.opacity = "1";
                 }
-            } catch (err) {
-                alert("Network error occurred.");
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                icon.innerText = '↑';
-            }
+            });
         }
 
         function startMapping(key) {
-            if (!selectedFile) {
-                alert("Please select a video from the library first!");
-                return;
-            }
+            if (!selectedFile) return alert("Select a video from the library first!");
             document.getElementById('target-key-display').innerText = key;
             document.getElementById('target-file-name').innerText = selectedFile;
             document.getElementById('assign-modal').style.display = 'grid';
@@ -738,38 +732,6 @@ def dashboard():
             refresh();
         }
 
-        function updateVUMeter(volume, currentPlaying) {
-            const hSegments = document.querySelectorAll('#vu-meter .vu-segment');
-            const vSegments = document.querySelectorAll('#vu-meter-v .vu-segment');
-            const isActive = currentPlaying !== 'idle' && currentPlaying !== 'logo';
-            
-            function updateSet(segments) {
-                const threshold = Math.floor((volume / 100) * segments.length);
-                segments.forEach((s, i) => {
-                    const color = i < segments.length * 0.6 ? '#00ffaa' : (i < segments.length * 0.85 ? '#ffcc00' : '#ff3300');
-                    if (i < threshold) {
-                        s.style.background = color;
-                        s.style.boxShadow = `0 0 8px ${color}66`;
-                        if (isActive) {
-                            s.classList.add('anim-pulse');
-                            s.style.animationDelay = (i * 0.02) + "s";
-                        } else {
-                            s.classList.remove('anim-pulse');
-                            s.style.opacity = "0.4";
-                        }
-                    } else {
-                        s.style.background = '#222';
-                        s.style.boxShadow = 'none';
-                        s.classList.remove('anim-pulse');
-                        s.style.opacity = "1";
-                    }
-                });
-            }
-
-            updateSet(hSegments);
-            updateSet(vSegments);
-        }
-
         async function changeVolume(val) {
             document.getElementById('vol-value').innerText = val + "%";
             await fetch('/api/audio', {
@@ -787,19 +749,21 @@ def dashboard():
             });
         }
 
+        async function updateSystem() {
+            if (!confirm("Pull latest code and restart?")) return;
+            await fetch('/api/update-system', { method: 'POST' });
+            alert("System update initiated...");
+        }
+
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
         
-        let currentState = { media: [] };
-        async function init() {
-            const res = await fetch('/api/status');
-            currentState = await res.json();
-            refresh();
-        }
-        init();
+        setInterval(refresh, 2000);
+        refresh();
     </script>
 </body>
 </html>
     """
+
 
 def run_server(update_callback=None, port=3000):
     global on_update_callback
