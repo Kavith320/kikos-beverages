@@ -13,7 +13,7 @@ log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 # Use a consistent secret key for sessions
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "kikos-beverages-smart-display-v4")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "kiosk-smart-display-v5")
 CORS(app, supports_credentials=True)
 
 # Admin credentials
@@ -304,7 +304,7 @@ def dashboard():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kikos Control Center</title>
+    <title>Kiosk Control Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -517,7 +517,7 @@ def dashboard():
         <header>
             <div class="logo-group">
                 <div class="logo-dot"></div>
-                <h1>Kikos Control Center</h1>
+                <h1>Kiosk Control Center</h1>
             </div>
             <div class="header-actions">
                 <span style="font-size: 0.7rem; color: var(--text-secondary); margin-right: 12px;">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
