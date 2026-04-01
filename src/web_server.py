@@ -220,6 +220,22 @@ def remove_mapping():
         return jsonify({"success": True})
     return jsonify({"error": "Not mapped"}), 400
 
+@app.route('/api/reboot', methods=['POST'])
+@login_required
+def reboot_system():
+    """
+    Attempts to restart the entire PC (Linux System).
+    Note: Requires sudo reboot permissions for the user running the script.
+    """
+    import subprocess
+    try:
+        # Triggering a system reboot
+        # Usually requires 'sudo' in kiosk setups
+        subprocess.Popen(["sudo", "reboot"]) 
+        return jsonify({"success": True, "message": "System reboot sequence initiated"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/update-system', methods=['POST'])
 @login_required
 def update_system():
@@ -521,7 +537,8 @@ def dashboard():
             </div>
             <div class="header-actions">
                 <span style="font-size: 0.7rem; color: var(--text-secondary); margin-right: 12px;">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
-                <button class="btn" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);" onclick="updateSystem()">RESTART</button>
+                <button class="btn btn-danger" style="background: rgba(255, 62, 94, 0.05); color: #ff3e5e; font-size: 0.65rem;" onclick="rebootSystem()">REBOOT HW</button>
+                <button class="btn" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);" onclick="updateSystem()">APP RESTART</button>
                 <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">APPLY SYNC</button>
                 <a href="/api/logout" class="btn btn-danger" style="padding: 10px;">ESC</a>
             </div>
@@ -715,6 +732,12 @@ def dashboard():
         async function updateSystem() {
             if (!confirm("Confirm remote restart?")) return;
             await fetch('/api/update-system', { method: 'POST' });
+        }
+
+        async function rebootSystem() {
+            if (!confirm("⚠️ CAUTION: REBOOT ENTIRE HARDWARE? \nThis will shut down the display and restart the PC.")) return;
+            await fetch('/api/reboot', { method: 'POST' });
+            alert("Hardware reboot sequence initiated. Please wait 60s.");
         }
 
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
