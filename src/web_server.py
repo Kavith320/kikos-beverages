@@ -240,9 +240,13 @@ def dashboard():
         body { height: 100vh; margin: 0; background: var(--bg); color: var(--text-primary); font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; overflow: hidden; padding: 16px; gap: 16px; }
         header { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: var(--surface); border: 1px solid var(--glass-border); border-radius: 16px; flex-shrink: 0; }
         .logo-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 15px var(--accent-glow); animation: pulse 2s infinite; display: inline-block; margin-right: 10px; }
-        .btn { background: rgba(255,255,255,0.05); color: #fff; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+        .btn { background: rgba(255,255,255,0.05); color: #fff; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); opacity: 0.8; }
         .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
+        .btn-accent:hover { background: #00e5ff; box-shadow: 0 6px 20px var(--accent-glow); }
         .btn-danger { color: var(--danger); background: rgba(255, 62, 94, 0.1); }
+        .btn-danger:hover { background: rgba(255, 62, 94, 0.2); }
         .grid { flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: 16px; min-height: 0; }
         .col { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
         .card { background: var(--surface); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; min-height: 0; }
@@ -263,9 +267,14 @@ def dashboard():
         
         /* Media List */
         .media-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .media-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
-        .media-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.05); }
-        .media-item img { width: 60px; height: 34px; border-radius: 4px; object-fit: cover; }
+        .media-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; border-radius: 8px; cursor: pointer; position: relative; }
+        .media-item:hover { background: rgba(255,255,255,0.05); }
+        .media-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.1); box-shadow: inset 0 0 10px rgba(0,212,255,0.1); }
+        .media-item.is-idle { border-left: 4px solid #a855f7; background: rgba(168, 85, 247, 0.05); }
+        
+        .ctx-menu { position: absolute; background: #1a1a24; border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; z-index: 1000; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 150px; }
+        .ctx-item { padding: 8px 12px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .ctx-item:hover { background: rgba(255,255,255,0.08); color: var(--accent); }
         
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; place-items: center; z-index: 100; backdrop-filter: blur(5px); }
         .modal-c { background: var(--surface); border: 1px solid var(--glass-border); padding: 24px; border-radius: 16px; width: 300px; text-align: center; }
@@ -285,8 +294,13 @@ def dashboard():
         <div style="display: flex; gap: 12px; align-items: center;">
             <span id="api-status" style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e;"></span>
             <span style="font-size: 0.7rem; color: var(--text-secondary);">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
-            <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')">APPLY & RESTART GUI</button>
-            <a href="/api/logout" class="btn btn-danger">ESC</a>
+            <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                APPLY & RESTART
+            </button>
+            <a href="/api/logout" class="btn btn-danger" title="Exit to Login">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </a>
         </div>
     </header>
 
@@ -296,7 +310,7 @@ def dashboard():
                 <h2>System Monitors</h2>
                 <div class="monitor-grid" style="grid-template-columns: 1fr;">
                     <div class="screen-box">
-                        <div class="live-tag">VIEW TX</div>
+                        <div class="live-tag">PLAYBACK</div>
                         <img id="live-img" src="">
                     </div>
                 </div>
@@ -314,11 +328,23 @@ def dashboard():
         <div class="col card">
             <h2>Media & Audio</h2>
             <div style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="btn btn-accent" style="flex:1;" onclick="document.getElementById('uf').click()">+ UPLOAD</button>
+                <button class="btn btn-accent" style="flex:1;" onclick="document.getElementById('uf').click()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    UPLOAD
+                </button>
                 <input type="file" id="uf" style="display:none;" onchange="upload(this.files[0])">
-                <button class="btn" onclick="setIdle()">SET IDLE</button>
             </div>
-            <div class="media-list" id="mlist"></div>
+            <div class="media-list" id="mlist" oncontextmenu="return false;"></div>
+            <div id="ctx-menu" class="ctx-menu">
+                <div class="ctx-item" onclick="setIdleFromCtx()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    Set as Idle
+                </div>
+                <div class="ctx-item" style="color:var(--danger)" onclick="delFromCtx()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    Delete
+                </div>
+            </div>
             
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-border);">
                 <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 8px;">
@@ -388,15 +414,25 @@ def dashboard():
 
             // Library (Media List)
             const l = document.getElementById('mlist');
-            l.innerHTML = d.media.map(f => `
-                <div class="media-item ${selFile===f?'selected':''}" onclick="sel('${f}')">
-                    <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:var(--accent);">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            l.innerHTML = d.media.map(f => {
+                const isIdle = d.config.idle === f;
+                return `
+                    <div class="media-item ${selFile===f?'selected':''} ${isIdle?'is-idle':''}" 
+                         onclick="sel('${f}')" 
+                         oncontextmenu="showCtx(event, '${f}')">
+                        <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:${isIdle?'#a855f7':'var(--accent)'};">
+                            ${isIdle ? 
+                                '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>' : 
+                                '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>'
+                            }
+                        </div>
+                        <div style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+                            <span style="font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${isIdle?'#d8b4fe':'#fff'}">${f}</span>
+                            ${isIdle ? '<span style="font-size:0.6rem; color:#a855f7; font-weight:bold;">IDLE CONTENT</span>' : ''}
+                        </div>
                     </div>
-                    <span style="font-size:0.8rem; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f}</span>
-                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="del('${f}', event)">X</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             // Audio
             document.getElementById('vol').value = d.audio.volume || 100;
@@ -441,16 +477,30 @@ def dashboard():
             fetchStatus();
         }
 
-        async function setIdle() {
-            if(!selFile) return;
-            await xFetch('/api/update-mapping', {is_idle: true, filename: selFile});
+        function sel(f) { selFile = f; fetchStatus(); }
+        
+        // Context Menu Logic
+        const ctx = document.getElementById('ctx-menu');
+        let ctxFile = null;
+        function showCtx(e, f) {
+            e.preventDefault();
+            ctxFile = f;
+            ctx.style.display = 'block';
+            ctx.style.left = e.pageX + 'px';
+            ctx.style.top = e.pageY + 'px';
+        }
+        window.onclick = () => ctx.style.display = 'none';
+
+        async function setIdleFromCtx() {
+            if(!ctxFile) return;
+            await xFetch('/api/update-mapping', {is_idle: true, filename: ctxFile});
             fetchStatus();
         }
 
-        async function del(f, e) {
-            e.stopPropagation();
-            if(confirm('Delete '+f+'?')) {
-                await xFetch('/api/delete', {filename: f});
+        async function delFromCtx() {
+            if(!ctxFile) return;
+            if(confirm('Delete '+ctxFile+'?')) {
+                await xFetch('/api/delete', {filename: ctxFile});
                 fetchStatus();
             }
         }
