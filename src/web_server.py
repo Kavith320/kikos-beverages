@@ -362,11 +362,18 @@ def dashboard():
         /* Responsive Design */
         @media (max-width: 900px) {
             body { height: auto; overflow-y: auto; padding: 12px; }
-            header { flex-direction: column; gap: 12px; text-align: center; }
+            header { padding: 12px 16px; border-radius: 12px; }
+            header strong { font-size: 0.9rem; }
+            .btn span { display: none; } /* Hide text, keep icons */
+            .btn { padding: 8px; }
+            .logo-dot { margin-right: 5px; }
+
             .grid { grid-template-columns: 1fr; display: flex; flex-direction: column; }
             .col { min-height: auto; }
             .card { min-height: 400px; }
             .monitor-grid { grid-template-columns: 1fr; }
+            
+            #analytics-page table { display: block; overflow-x: auto; white-space: nowrap; }
         }
     </style>
 </head>
@@ -376,20 +383,19 @@ def dashboard():
             <div class="logo-dot"></div>
             <strong style="font-size: 1.1rem;">Kiosk Control Center</strong>
         </div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-            <span id="api-status" style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e;"></span>
-            <span style="font-size: 0.7rem; color: var(--text-secondary);">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
-            <button class="btn" style="background:rgba(255,255,255,0.08)" onclick="if(confirm('Pull latest code from Cloud and Restart?')) xFetch('/api/update-system')">
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 0.7rem; color: var(--text-secondary); display: none;" id="ip-lbl">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
+            <button class="btn" style="background:rgba(255,255,255,0.08)" onclick="if(confirm('Pull latest code from Cloud and Restart?')) xFetch('/api/update-system')" title="Update from Cloud">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                GIT UPDATE
+                <span>GIT UPDATE</span>
             </button>
-            <button class="btn" style="background:rgba(168, 85, 247, 0.1); color:#d8b4fe" onclick="showAnalytics()">
+            <button class="btn" style="background:rgba(168, 85, 247, 0.1); color:#d8b4fe" onclick="showAnalytics()" title="View Analytics">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-                ANALYTICS
+                <span>ANALYTICS</span>
             </button>
-            <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')">
+            <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')" title="Apply & Restart">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
-                APPLY & RESTART
+                <span>APPLY & RESTART</span>
             </button>
             <a href="/api/logout" class="btn btn-danger" title="Exit to Login">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
