@@ -26,48 +26,34 @@ smart-display/
 └── config/          # Configuration files (mappings, device settings)
 ```
 
-## 5. Setup & Installation
-It is highly recommended to run this project inside a Python virtual environment to isolate dependencies.
-1. Create a virtual environment:
-   ```bash
-   python3 -m venv .venv
-   ```
-2. Activate the virtual environment:
-   - macOS/Linux: `source .venv/bin/activate`
-   - Windows: `.venv\Scripts\activate`
-3. Install required libraries:
-   ```bash
-   pip install PySide6 pyserial pillow
-   ```
+## 5. Linux Kiosk Setup (Mini PC)
+This project is built for **Linux Mint / Debian** environments. The automated setup script handles everything:
+1.  **System Preparation:** Installs Qt6, Python, and GPU acceleration drivers.
+2.  **Kiosk Mode:** Hides desktop icons, taskbars, and sets a pitch-black background.
+3.  **Autostart:** Configures the system to launch the app immediately on boot.
+4.  **Remote Reboot:** Configures passwordless `sudo reboot` so you can restart from the web panel.
 
-## 6. How to Run the Application
-Ensure your virtual environment is activated, then run the application from the root directory:
-
+**Run the installer:**
 ```bash
-source .venv/bin/activate
-python src/main.py
+chmod +x setup_linux.sh
+./setup_linux.sh
 ```
 
-### Keyboard Controls (Simulation Mode)
-Since the ESP32 integration may not be connected during software testing, you can simulate product interactions:
-- **`1`, `2`, `3`, `4`**: Trigger product 1, 2, 3, or 4 video sequences.
-- **`0` or `Space`**: Return to the idle screen.
-- **`Esc`**: Exit the application.
+## 6. Remote Management (Web Dashboard)
+Once running, you can manage the display from any computer on the same network:
+*   **URL:** `http://<KIOSK_IP>:3000`
+*   **Default Password:** `admin123`
+*   **Features:** Live console mirror, real-time trigger assignments, remote hardware reboot, and cloud-to-local sync.
 
-## 7. Troubleshooting
+### Level-Zero Control:
+- **APPLY SYNC:** Instant soft reload (new media config).
+- **UPDATE & RESTART:** Pulls from GitHub and reloads app.
+- **REBOOT HW:** Fully restarts the Mini PC hardware.
 
-### macOS: Qt Platform Plugin "cocoa" Error
-While developing on macOS, you may encounter a crash upon running `main.py` that states:
-> `qt.qpa.plugin: Could not find the Qt platform plugin "cocoa" in ""`
-> `This application failed to start because no Qt platform plugin could be initialized.`
-
-**Cause:** 
-This is a common issue with older PySide6 distributions (e.g., version `6.6.3`) where the `libqcocoa.dylib` fails to properly load on newer macOS architectures or Apple Silicon inside an isolated virtual environment.
-
-**The Fix:**
-Forcefully reinstall/upgrade PySide6 to the latest version (e.g., `6.11.0` or higher) inside your active virtual environment. This forces pip to download the updated macOS universal binaries containing the properly linked plugins:
-
-```bash
-source .venv/bin/activate
-pip install --force-reinstall PySide6
-```
+## 7. Development (macOS)
+The app is compatible with macOS for development.
+1. Create venv: `python3 -m venv .venv`
+2. Install: `pip install -r requirements.txt`
+3. If you get a "Qt platform plugin" error, run:
+   `pip install --force-reinstall PySide6`
+4. Launch: `./run_app.sh`

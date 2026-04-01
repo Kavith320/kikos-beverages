@@ -76,6 +76,11 @@ if command -v gsettings >/dev/null 2>&1; then
     gsettings set org.cinnamon panels-autohide "['1:true']" || true
 fi
 
+# 3. Allow Reboot Without Password (CRITICAL for Remote Management)
+echo "Adding passwordless reboot permission for current user: $USER..."
+sudo bash -c "echo '$USER ALL=(ALL) NOPASSWD: /sbin/reboot, /sbin/shutdown, /usr/bin/systemctl reboot' > /etc/sudoers.d/smart-display-reboot"
+sudo chmod 0440 /etc/sudoers.d/smart-display-reboot
+
 echo "========================================="
 echo "Setup & Kiosk Automation Complete!"
 echo "Please make sure 'Auto-Login' is enabled for your user in the Linux settings."
