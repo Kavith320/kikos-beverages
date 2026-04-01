@@ -410,16 +410,19 @@ def dashboard():
         // SMOOTH SNAPSHOT: Use an off-screen buffer to prevent flickering
         const bufferImg = new Image();
         let isFetching = false;
-        async function fetchSnap() {
-            if (isFetching) return;
-            isFetching = true;
-            const newSrc = "/api/snapshot?_t=" + Date.now();
-            bufferImg.src = newSrc;
-            bufferImg.onload = () => {
-                document.getElementById('live-img').src = newSrc;
-                isFetching = false;
-            };
-            bufferImg.onerror = () => { isFetching = false; };
+        function fetchSnap() {
+            return new Promise((resolve) => {
+                if (isFetching) return resolve();
+                isFetching = true;
+                const newSrc = "/api/snapshot?_t=" + Date.now();
+                bufferImg.src = newSrc;
+                bufferImg.onload = () => {
+                    document.getElementById('live-img').src = newSrc;
+                    isFetching = false;
+                    resolve();
+                };
+                bufferImg.onerror = () => { isFetching = false; resolve(); };
+            });
         }
 
         function sel(f) { selFile = f; fetchStatus(); }
@@ -470,8 +473,12 @@ def dashboard():
         // Initial status pull
         fetchStatus();
         
-        // Auto-Monitor: High-speed (10fps) with NO flickering via buffer
-        setInterval(fetchSnap, 100); 
+        // AUTO MONITOR: Recursive fetch for highest achievable framerate.
+        // As soon as one frame finishes loading, we pull the next one.
+        function monitorLoop() {
+            fetchSnap().then(() => setTimeout(monitorLoop, 16)); // ~60fps cap if fast enough
+        }
+        monitorLoop();
     </script>
 </body>
 </html>"""
