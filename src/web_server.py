@@ -37,8 +37,11 @@ VIDEO_FOLDER = os.path.join(BASE_DIR, "videos")
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "media_config.json")
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'mkv', 'avi'}
 
+# Ensure config directory exists!
+os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+
 if not os.path.exists(VIDEO_FOLDER):
-    os.makedirs(VIDEO_FOLDER)
+    os.makedirs(VIDEO_FOLDER, exist_ok=True)
 
 # Global states
 on_update_callback = None
