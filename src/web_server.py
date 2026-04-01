@@ -199,14 +199,24 @@ def reboot_system():
 @app.route('/api/update-system', methods=['POST'])
 @login_required
 def update_system():
-    import subprocess
+    import subprocess, shutil
+    # Protect config from being wiped if git tries to delete it
+    temp_conf = CONFIG_PATH + ".tmp"
+    has_conf = os.path.exists(CONFIG_PATH)
+    if has_conf: shutil.copy2(CONFIG_PATH, temp_conf)
+    
     try:
-        pull_res = subprocess.run(["git", "pull", "origin", "main"], capture_output=True, text=True, check=True)
+        # Pull latest code
+        subprocess.run(["git", "pull", "origin", "main"], capture_output=True, text=True, check=True)
+        # Restore config if it was lost
+        if has_conf: shutil.move(temp_conf, CONFIG_PATH)
+        
         if on_update_callback:
             on_update_callback("TRIGGER:RESTART")
             return jsonify({"success": True})
-        return jsonify({"success": True, "message": "Updated, but GUI not connected"})
+        return jsonify({"success": True})
     except Exception as e:
+        if os.path.exists(temp_conf): os.remove(temp_conf)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/login')
