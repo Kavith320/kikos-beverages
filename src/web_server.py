@@ -35,6 +35,7 @@ def login_required(f):
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VIDEO_FOLDER = os.path.join(BASE_DIR, "videos")
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "media_config.json")
+ASSETS_FOLDER = os.path.join(BASE_DIR, "assets")
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'mkv', 'avi'}
 
 # Ensure config directory exists!
@@ -237,6 +238,10 @@ def restart_gui():
         return jsonify({"success": True})
     return jsonify({"error": "GUI not connected"}), 503
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(ASSETS_FOLDER, 'favicon.png')
+
 @app.route('/')
 @login_required
 def dashboard():
@@ -246,6 +251,7 @@ def dashboard():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kiosk Control Center</title>
+    <link rel="icon" type="image/png" href="/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #010103; --surface: rgba(10, 10, 15, 0.85); --accent: #00d4ff; --accent-glow: rgba(0, 212, 255, 0.3); --text-primary: #ffffff; --text-secondary: #8c8c9e; --danger: #ff3e5e; --glass-border: rgba(255, 255, 255, 0.06); }
