@@ -19,6 +19,7 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "kiosk-smart-display-v5")
 CORS(app, supports_credentials=True)
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 
 
 
@@ -43,6 +44,7 @@ from datetime import datetime
 
 # Ensure config directory exists!
 os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+os.makedirs(ASSETS_FOLDER, exist_ok=True)
 
 if not os.path.exists(VIDEO_FOLDER):
     os.makedirs(VIDEO_FOLDER, exist_ok=True)
@@ -90,10 +92,17 @@ def log_playback(slot, filename):
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
-    if request.json.get('password') == ADMIN_PASSWORD:
+    data = request.json
+    u = data.get('username')
+    p = data.get('password')
+    if u == ADMIN_USER and p == ADMIN_PASSWORD:
         session['logged_in'] = True
         return jsonify({"success": True})
-    return jsonify({"success": False}), 401
+    return jsonify({"success": False, "error": "Invalid credentials"}), 401
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory(ASSETS_FOLDER, filename)
 
 @app.route('/api/logout')
 def api_logout():
@@ -397,9 +406,9 @@ def dashboard():
 </head>
 <body>
     <header>
-        <div>
-            <div class="logo-dot"></div>
-            <strong style="font-size: 1.1rem;">Kiosk Control Center</strong>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:32px; height:32px; background:var(--accent); border-radius:8px; display:grid; place-items:center; mask: url(/favicon.ico) center/contain no-repeat; -webkit-mask: url(/favicon.ico) center/contain no-repeat;"></div>
+            <strong style="font-size: 1.1rem; letter-spacing:-0.5px;">Control Center</strong>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
             <span style="font-size: 0.7rem; color: var(--text-secondary); display: none;" id="ip-lbl">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
