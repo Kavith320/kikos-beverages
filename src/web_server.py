@@ -655,6 +655,11 @@ def dashboard():
             const btn = document.getElementById('sync-btn');
             btn.innerText = "WAITING...";
             await fetch('/api/apply', { method: 'POST' });
+            
+            // Force Mirror Reconnect
+            const monitor = document.getElementById('live-monitor');
+            if (monitor) monitor.src = "/api/stream?sync=" + Date.now();
+            
             setTimeout(() => { btn.innerText = "APPLY SYNC"; refresh(); }, 1200);
         }
 
