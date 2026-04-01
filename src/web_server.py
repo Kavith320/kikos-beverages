@@ -148,8 +148,10 @@ def update_mapping():
 @login_required
 def apply_config():
     if on_update_callback:
-        on_update_callback("TRIGGER:RESTART") # Command for a full process exit
-        return jsonify({"success": True, "message": "System restart initiated"})
+        # Send empty string for "Soft Reload" (config only)
+        # To do a hard restart, use /api/update-system or similar
+        on_update_callback("") 
+        return jsonify({"success": True, "message": "GUI config reloaded"})
     return jsonify({"error": "GUI not connected"}), 503
 
 def gen_frames():
@@ -712,8 +714,17 @@ def dashboard():
 
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
         
-        setInterval(refresh, 2000);
+        // Auto-Sync: Faster heartbeat
+        setInterval(refresh, 1000);
         refresh();
+
+        // Connection Guard: Restarts mirror if it drops
+        setInterval(() => {
+            const img = document.getElementById('live-monitor');
+            if (img && (!img.complete || img.naturalWidth === 0)) {
+                img.src = "/api/stream?v=" + Date.now();
+            }
+        }, 3000);
     </script>
 </body>
 </html>
