@@ -254,6 +254,45 @@ def login_page():
     except Exception as e:
         return f"Error loading login page: {str(e)}", 500
 
+@app.route('/api/thumbnail/<filename>')
+@login_required
+def get_thumbnail(filename):
+    """
+    Attempts to generate a thumbnail using ffmpeg if available.
+    Falls back to a colored placeholder if it fails or ffmpeg is missing.
+    """
+    import subprocess
+    thumb_dir = os.path.join(VIDEO_FOLDER, ".thumbnails")
+    if not os.path.exists(thumb_dir):
+        os.makedirs(thumb_dir)
+    
+    thumb_path = os.path.join(thumb_dir, f"{filename}.jpg")
+    
+    # Try using ffmpeg if the thumbnail doesn't exist
+    if not os.path.exists(thumb_path):
+        video_path = os.path.join(VIDEO_FOLDER, filename)
+        try:
+            # Capture the 1st second frame
+            res = subprocess.run([
+                "ffmpeg", "-y", "-i", video_path, 
+                "-ss", "00:00:01", "-vframes", "1", 
+                "-vf", "scale=120:-1", # Small preview
+                thumb_path
+            ], capture_output=True, timeout=2)
+            
+            if res.returncode != 0:
+                # ffmpeg failed or command doesn't exist
+                return send_from_directory(VIDEO_FOLDER, filename) # Return something at least
+        except:
+            # ffmpgeg probably not installed
+            pass
+
+    if os.path.exists(thumb_path):
+        return send_from_directory(thumb_dir, f"{filename}.jpg")
+    else:
+        # Final fallback: SVG placeholder
+        return """<svg width="120" height="68" viewBox="0 0 120 68" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#111"/><text x="50%" y="50%" font-family="Arial" font-size="10" fill="#333" text-anchor="middle">NO THUMB</text></svg>""", 200, {'Content-Type': 'image/svg+xml'}
+
 @app.route('/')
 @login_required
 def dashboard():
@@ -267,227 +306,207 @@ def dashboard():
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #030305;
-            --surface: rgba(10, 10, 15, 0.8);
-            --surface-accent: rgba(20, 20, 30, 0.9);
+            --bg: #010103;
+            --surface: rgba(10, 10, 15, 0.85);
+            --surface-accent: rgba(20, 20, 30, 0.95);
             --accent: #00d4ff;
             --accent-glow: rgba(0, 212, 255, 0.3);
             --text-primary: #ffffff;
             --text-secondary: #8c8c9e;
             --danger: #ff3e5e;
             --success: #22c55e;
-            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.06);
             --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
+        
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; /* NO GLOBAL SCROLL */
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 20% 20%, rgba(0, 212, 255, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 80% 80%, rgba(212, 0, 255, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 10% 10%, rgba(0, 212, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(212, 0, 255, 0.03) 0%, transparent 40%);
             color: var(--text-primary);
             font-family: 'Outfit', sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            overflow-x: hidden;
         }
-        
+
         .page-container {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 24px;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            padding: 16px;
+            gap: 16px;
         }
         
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 24px;
+            padding: 12px 24px;
             background: var(--surface);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
+            border-radius: 16px;
             box-shadow: var(--card-shadow);
+            flex-shrink: 0;
         }
         
         .logo-group { display: flex; align-items: center; gap: 12px; }
-        .logo-dot { 
-            width: 12px; height: 12px; 
-            background: linear-gradient(135deg, var(--accent), #d400ff); 
-            border-radius: 50%; 
-            box-shadow: 0 0 15px var(--accent-glow); 
-            animation: pulse 2s infinite;
-        }
-        h1 { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -0.5px; opacity: 0.9; }
+        .logo-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 15px var(--accent-glow); animation: pulse 2s infinite; }
+        h1 { margin: 0; font-size: 1.1rem; font-weight: 600; letter-spacing: -0.5px; opacity: 0.9; }
 
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
         /* Main Dashboard Grid */
         .dashboard-grid {
+            flex: 1;
             display: grid;
             grid-template-columns: repeat(12, 1fr);
-            gap: 24px;
+            grid-template-rows: 1fr 1fr; /* Two equal rows */
+            gap: 16px;
+            overflow: hidden; /* Container doesn't scroll */
         }
 
         /* Card Base */
         .card { 
             background: var(--surface);
             backdrop-filter: blur(16px);
-            border-radius: 24px;
-            padding: 24px;
+            border-radius: 20px;
+            padding: 20px;
             border: 1px solid var(--glass-border);
             box-shadow: var(--card-shadow);
-            transition: transform 0.3s ease, border-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .card:hover { border-color: rgba(255,255,255,0.15); }
         .card h2 { 
-            font-size: 0.8rem; 
+            font-size: 0.75rem; 
             color: var(--text-secondary); 
             text-transform: uppercase; 
             letter-spacing: 1.5px; 
             margin-top: 0; 
-            margin-bottom: 24px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px;
+            margin-bottom: 16px; 
             opacity: 0.7;
+            flex-shrink: 0;
         }
         
-        /* Grid Assignments */
-        .monitor-sect { grid-column: span 8; }
-        .library-sect { grid-column: span 4; grid-row: span 2; }
-        .matrix-sect { grid-column: span 8; }
-        .audio-sect { grid-column: span 4; }
+        /* Grid Placement */
+        .monitor-sect { grid-column: span 8; grid-row: 1; }
+        .matrix-sect { grid-column: span 8; grid-row: 2; }
+        .library-sect { grid-column: span 4; grid-row: 1 / 3; } /* Spans entire right height */
 
         @media (max-width: 1200px) {
-            .monitor-sect, .library-sect, .matrix-sect, .audio-sect { grid-column: span 12; }
-            .library-sect { grid-row: auto; }
+            .dashboard-grid { 
+                grid-template-rows: repeat(4, auto); 
+                overflow-y: auto; 
+            }
+            .monitor-sect, .library-sect, .matrix-sect { grid-column: span 12; grid-row: auto; }
+            .page-container { height: auto; }
+            html, body { overflow: auto; }
         }
 
         /* Monitor View */
-        .monitor-wrapper {
-            display: flex; gap: 20px; align-items: stretch;
-        }
+        .monitor-wrapper { display: flex; gap: 16px; flex: 1; align-items: stretch; min-height: 0; }
         .monitor-screen {
-            position: relative; flex: 1; aspect-ratio: 16/9; 
-            background: #000; border-radius: 16px; overflow: hidden;
+            position: relative; flex: 1; background: #000; border-radius: 12px; overflow: hidden;
             border: 1px solid rgba(255,255,255,0.05);
         }
         .monitor-screen img { width: 100%; height: 100%; object-fit: contain; }
         .live-tag {
             position: absolute; top: 12px; left: 12px;
-            background: rgba(255, 62, 94, 0.8); color: #fff;
-            padding: 4px 10px; border-radius: 6px; font-size: 0.65rem;
-            font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;
+            background: rgba(255, 62, 94, 0.85); color: #fff;
+            padding: 4px 10px; border-radius: 6px; font-size: 0.6rem;
+            font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;
         }
-        .live-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: pulse 1s infinite; }
+        .live-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; opacity: 1; }
 
-        /* Idle State */
-        .idle-indicator {
-            background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), transparent);
-            padding: 16px 20px; border-radius: 16px; margin-bottom: 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            border-left: 3px solid var(--accent);
+        /* Multi-Media Scroller Header */
+        .library-controls { flex-shrink: 0; margin-bottom: 12px; }
+        
+        /* THE SEPARATE SCROLLER */
+        .library-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
-        .idle-label { font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase; }
-        .idle-val { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+        .library-scroll::-webkit-scrollbar { width: 6px; }
+        .library-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        .media-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 10px;
+            display: flex; align-items: center; gap: 12px;
+            cursor: pointer; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .media-card:hover { transform: scale(1.02); background: rgba(255,255,255,0.05); }
+        .media-card.selected { border-color: var(--accent); background: rgba(0, 212, 255, 0.05); }
+        
+        /* SNAPSHOT / PREVIEW STYLE */
+        .media-preview {
+            width: 80px; height: 45px; background: #000; border-radius: 6px; 
+            overflow: hidden; flex-shrink: 0; position: relative;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .media-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .play-icon { position: absolute; inset:0; display: grid; place-items: center; opacity: 0.4; }
 
-        /* Shortcut Matrix */
+        .media-info { flex: 1; min-width: 0; }
+        .media-title { font-weight: 600; font-size: 0.85rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .media-meta { font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px; }
+
+        /* Matrix Grid Adjustments */
         .matrix-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
         }
         .key-slot {
             background: var(--surface-accent);
-            border-radius: 20px;
-            padding: 24px;
-            text-align: center;
-            border: 1px solid var(--glass-border);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-        .key-slot::before {
-            content: ''; position: absolute; inset: 0;
-            background: radial-gradient(circle at center, var(--accent-glow), transparent 70%);
-            opacity: 0; transition: opacity 0.3s;
-        }
-        .key-slot:hover { transform: translateY(-8px); border-color: var(--accent); }
-        .key-slot:hover::before { opacity: 0.4; }
-        .key-slot.active { border-color: rgba(255,255,255,0.2); }
-        .key-slot.is-playing { 
-            border-color: var(--accent); 
-            box-shadow: 0 0 30px var(--accent-glow);
-            background: rgba(0, 212, 255, 0.1);
-        }
-        .key-num { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 1.8rem; color: var(--accent); position: relative; z-index: 1; }
-        .key-file { font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; }
-
-        /* Library List */
-        .library-container { display: flex; flex-direction: column; gap: 12px; height: calc(100% - 100px); overflow-y: auto; padding-right: 8px; }
-        .library-container::-webkit-scrollbar { width: 5px; }
-        .library-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        
-        .media-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 16px;
-            display: flex; align-items: center; gap: 16px;
-            cursor: pointer; transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+            cursor: pointer;
+            padding: 12px;
         }
-        .media-card:hover { background: rgba(255,255,255,0.06); }
-        .media-card.selected { border-color: var(--accent); background: rgba(0, 212, 255, 0.05); }
-        .media-icon { width: 40px; height: 40px; background: #000; border-radius: 10px; display: grid; place-items: center; font-size: 1.2rem; }
-        .media-info { flex: 1; min-width: 0; }
-        .media-title { font-weight: 600; font-size: 0.9rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .media-meta { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+        .key-slot.is-playing { background: rgba(0, 212, 255, 0.1); border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+        .key-num { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 1.6rem; color: var(--accent); }
+        .key-file { font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Audio Controls */
-        .volume-panel {
-            background: var(--surface-accent);
-            padding: 24px; border-radius: 20px; border: 1px solid var(--glass-border);
+        /* Audio Section (Integrated in Sidebar Bottom) */
+        .audio-mini {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--glass-border);
+            flex-shrink: 0;
         }
-        .slider-wrap { margin: 20px 0; }
-        .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 8px; background: #1a1a25; outline: none; }
-        .slider::-webkit-slider-thumb { 
-            -webkit-appearance: none; width: 22px; height: 22px; 
-            border-radius: 50%; background: #fff; cursor: pointer; 
-            box-shadow: 0 0 15px rgba(255,255,255,0.5); border: 4px solid var(--accent);
-        }
-        select { background: #000; color: #fff; border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; width: 100%; font-family: inherit; margin-top: 10px; outline: none; }
-
+        
         /* Buttons */
         .btn {
-            background: rgba(255,255,255,0.05); color: #fff; border: none; padding: 12px 20px; border-radius: 14px;
-            font-family: inherit; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,0.05); color: #fff; border: none; padding: 10px 16px; border-radius: 12px;
+            font-family: inherit; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;
+            font-size: 0.8rem;
         }
-        .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 20px var(--accent-glow); }
-        .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 6px 25px var(--accent-glow); }
-        .btn-danger { color: var(--danger); background: rgba(255, 62, 94, 0.1); border: 1px solid rgba(255, 62, 94, 0.2); }
-        .btn-danger:hover { background: rgba(255, 62, 94, 0.2); }
-        .btn-ghost { background: transparent; border: 1px solid var(--glass-border); }
-        .btn-ghost:hover { background: rgba(255,255,255,0.05); }
+        .btn-accent { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
+        .btn-danger { color: #ff3e5e; background: rgba(255, 62, 94, 0.1); }
 
-        /* Status VU Meter */
-        .vu-meter-v { width: 12px; background: #000; border-radius: 6px; display: flex; flex-direction: column-reverse; gap: 3px; padding: 3px; overflow: hidden; border: 1px solid var(--glass-border); }
-        .vu-segment { height: 6px; border-radius: 2px; background: #1a1a25; transition: 0.1s; }
+        .slider { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 4px; background: #1a1a25; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; cursor: pointer; border: 3px solid var(--accent); }
 
-        /* Animations */
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.9); } }
-        .is-playing .key-num { animation: pulse 1.5s infinite; }
         
-        .modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
-            display: none; place-items: center; z-index: 10000;
-        }
-        .modal-body { background: var(--surface); border: 1px solid var(--glass-border); padding: 40px; border-radius: 32px; text-align: center; max-width: 400px; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); display: none; place-items: center; z-index: 10000; }
+        .modal-body { background: var(--surface); border: 1px solid var(--glass-border); padding: 32px; border-radius: 20px; text-align: center; max-width: 360px; }
 
     </style>
 </head>
@@ -499,84 +518,58 @@ def dashboard():
                 <h1>Kikos Control Center</h1>
             </div>
             <div class="header-actions">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                    SYS_IP: <span id="ip-addr" style="color: #fff; font-family: 'JetBrains Mono';">--</span>
-                </div>
-                <button class="btn btn-ghost" id="update-btn" onclick="updateSystem()" style="font-size: 0.8rem;">
-                    Check Updates
-                </button>
-                <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">
-                    Apply Changes
-                </button>
-                <a href="/api/logout" class="btn btn-danger" style="padding: 12px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                </a>
+                <span style="font-size: 0.7rem; color: var(--text-secondary); margin-right: 12px;">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
+                <button class="btn" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);" onclick="updateSystem()">RESTART</button>
+                <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">APPLY SYNC</button>
+                <a href="/api/logout" class="btn btn-danger" style="padding: 10px;">ESC</a>
             </div>
         </header>
 
         <main class="dashboard-grid">
+            <!-- Top Left: Monitor -->
             <div class="card monitor-sect">
-                <h2>Live Display Monitor</h2>
+                <h2>Live Console Mirror</h2>
                 <div class="monitor-wrapper">
-                    <div class="vu-meter-v" id="vu-meter-v">
-                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                        <div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div><div class="vu-segment"></div>
-                    </div>
                     <div class="monitor-screen">
-                        <div class="live-tag"><div class="live-dot"></div> LIVE_TX</div>
+                        <div class="live-tag">LIVE_TX</div>
                         <img id="live-monitor" src="/api/stream">
                     </div>
                 </div>
             </div>
 
-            <div class="card library-sect">
-                <h2>Media Library</h2>
-                <button class="btn btn-accent" style="width: 100%; margin-bottom: 20px; justify-content: center;" onclick="document.getElementById('file-input').click()">
-                    + UPLOAD MEDIA
-                </button>
-                <input type="file" id="file-input" style="display:none;" onchange="uploadMedia(this.files[0])">
-                
-                <div class="library-container" id="library">
-                    <!-- Dynamic Items -->
-                </div>
-                
-                <button class="btn btn-ghost" style="width: 100%; margin-top: 20px; font-size: 0.75rem;" onclick="setIdleFromSelected()">
-                    SET SELECTED AS IDLE
-                </button>
-            </div>
-
+            <!-- Bottom Left: Matrix -->
             <div class="card matrix-sect">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                     <h2>Trigger Matrix Assignments</h2>
-                    <div class="idle-indicator" id="idle-banner-wrap" style="margin-top: -10px;">
-                        <div>
-                            <div class="idle-label">Active Idle</div>
-                            <div class="idle-val" id="idle-display">...</div>
-                        </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.6rem; color: var(--accent); text-transform: uppercase;">Idle State</div>
+                        <div id="idle-display" style="font-size: 0.9rem; font-weight: 600;">...</div>
                     </div>
                 </div>
-                <div class="matrix-grid" id="key-grid">
-                    <!-- 1-9 Keys -->
-                </div>
+                <div class="matrix-grid" id="key-grid"></div>
             </div>
 
-            <div class="card audio-sect">
-                <h2>Audio Engine</h2>
-                <div class="volume-panel">
-                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                        <span style="font-size: 0.8rem; opacity: 0.6;">Output Gain</span>
-                        <span id="vol-value" style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--accent);">100%</span>
+            <!-- Full Right: Library + Audio -->
+            <div class="card library-sect">
+                <h2>Media Management</h2>
+                <div class="library-controls">
+                    <button class="btn btn-accent" style="width: 100%; border-radius: 12px; justify-content: center;" onclick="document.getElementById('file-input').click()">
+                        + UPLOAD CONTENT
+                    </button>
+                    <input type="file" id="file-input" style="display:none;" onchange="uploadMedia(this.files[0])">
+                    <button class="btn" style="width: 100%; margin-top: 8px; justify-content: center; font-size: 0.7rem;" onclick="setIdleFromSelected()">SET AS IDLE</button>
+                </div>
+                
+                <!-- SEPARATE SCROLL LIST -->
+                <div class="library-scroll" id="library"></div>
+                
+                <div class="audio-mini">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                        <span style="font-size: 0.75rem; opacity: 0.6;">Output Gain</span>
+                        <span id="vol-value" style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--accent); font-size: 0.9rem;">100%</span>
                     </div>
-                    <div class="slider-wrap">
-                        <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
-                    </div>
-                    
-                    <div style="margin-top: 10px;">
-                        <span style="font-size: 0.75rem; opacity: 0.6;">Target Device</span>
-                        <select id="audio-out" onchange="changeAudioDevice(this.value)"></select>
-                    </div>
+                    <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
+                    <select id="audio-out" style="background:#000; color:#fff; border:1px solid var(--glass-border); padding:8px; border-radius:8px; width:100%; margin-top:10px; font-size:0.75rem;" onchange="changeAudioDevice(this.value)"></select>
                 </div>
             </div>
         </main>
@@ -584,11 +577,11 @@ def dashboard():
 
     <div id="assign-modal" class="modal">
         <div class="modal-body">
-            <div id="target-key-display" style="font-size: 4rem; font-family: 'JetBrains Mono'; color: var(--accent); line-height: 1;">1</div>
-            <p style="color: var(--text-secondary); margin: 20px 0;">Assigning video to this slot</p>
-            <div id="target-file-name" style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; font-weight: 600;">--</div>
-            <div style="display: flex; gap: 12px; margin-top: 32px;">
-                <button class="btn btn-ghost" style="flex:1; justify-content: center;" onclick="closeModal()">CANCEL</button>
+            <div id="target-key-display" style="font-size: 4rem; color: var(--accent); font-family: 'JetBrains Mono';">1</div>
+            <p style="color: var(--text-secondary); margin: 16px 0; font-size: 0.9rem;">Mapping file to slot</p>
+            <div id="target-file-name" style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; font-weight: 600; font-size: 0.8rem; overflow-wrap: break-word;">--</div>
+            <div style="display: flex; gap: 10px; margin-top: 24px;">
+                <button class="btn" style="flex:1; justify-content: center;" onclick="closeModal()">CANCEL</button>
                 <button class="btn btn-accent" style="flex:1; justify-content: center;" id="confirm-map">CONFIRM</button>
             </div>
         </div>
@@ -603,23 +596,17 @@ def dashboard():
                 const data = await res.json();
                 
                 document.getElementById('ip-addr').innerText = data.system.ip;
-                document.getElementById('idle-display').innerText = data.config.idle || "EMPTY";
+                document.getElementById('idle-display').innerText = data.config.idle || "NOT_SET";
                 
                 if (data.audio) {
                     document.getElementById('vol-slider').value = data.audio.volume;
                     document.getElementById('vol-value').innerText = Math.round(data.audio.volume) + "%";
-                    
                     const select = document.getElementById('audio-out');
                     if (data.audio.devices.length > 0) {
                         const currentVal = select.value || data.config.audio.device;
                         select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
                     }
-                    updateVUMeter(data.audio.volume, data.current_playing);
                 }
-
-                const idleBanner = document.getElementById('idle-banner-wrap');
-                idleBanner.style.borderColor = data.current_playing === 'idle' ? 'var(--accent)' : 'transparent';
-                
                 renderGrid(data.config, data.current_playing);
                 renderLibrary(data.media);
             } catch(e) {}
@@ -645,47 +632,28 @@ def dashboard():
             const lib = document.getElementById('library');
             lib.innerHTML = media.map(file => `
                 <div class="media-card ${selectedFile === file ? 'selected' : ''}" onclick="selectFile('${file}')">
-                    <div class="media-icon">🎬</div>
+                    <div class="media-preview">
+                        <img src="/api/thumbnail/${file}" onerror="this.src='/static/video-placeholder.png'; this.onerror=null;">
+                        <div class="play-icon">▶</div>
+                    </div>
                     <div class="media-info">
                         <span class="media-title">${file}</span>
-                        <span class="media-meta">MP4 VIDEO</span>
+                        <span class="media-meta">MP4 / VIDEO</span>
                     </div>
-                    <button class="btn btn-danger" style="padding: 6px; border-radius: 8px;" onclick="deleteVideo('${file}', event)">
+                    <button class="btn btn-danger" style="padding: 4px; background: transparent; border:none;" onclick="deleteVideo('${file}', event)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
             `).join('');
         }
 
-        function selectFile(file) {
-            selectedFile = file;
-            refresh();
-        }
+        function selectFile(file) { selectedFile = file; refresh(); }
 
         async function applyChanges() {
             const btn = document.getElementById('sync-btn');
-            btn.innerText = "SYNCING...";
+            btn.innerText = "WAITING...";
             await fetch('/api/apply', { method: 'POST' });
-            setTimeout(() => { btn.innerText = "Apply Changes"; refresh(); }, 1000);
-        }
-
-        function updateVUMeter(volume, currentPlaying) {
-            const vSegments = document.querySelectorAll('#vu-meter-v .vu-segment');
-            const isActive = currentPlaying !== 'idle' && currentPlaying !== 'logo';
-            const threshold = Math.floor(volume * vSegments.length);
-            
-            vSegments.forEach((s, i) => {
-                if (i < threshold) {
-                    const color = i < vSegments.length * 0.6 ? '#22c55e' : (i < vSegments.length * 0.85 ? '#eab308' : '#ef4444');
-                    s.style.background = color;
-                    s.style.boxShadow = `0 0 10px ${color}44`;
-                    s.style.opacity = isActive ? "1" : "0.3";
-                } else {
-                    s.style.background = '#1a1a25';
-                    s.style.boxShadow = 'none';
-                    s.style.opacity = "1";
-                }
-            });
+            setTimeout(() => { btn.innerText = "APPLY SYNC"; refresh(); }, 1200);
         }
 
         function startMapping(key) {
@@ -717,11 +685,7 @@ def dashboard():
         async function deleteVideo(filename, e) {
             e.stopPropagation();
             if (!confirm(`Delete ${filename}?`)) return;
-            await fetch('/api/delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename})
-            });
+            await fetch('/api/delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({filename}) });
             refresh();
         }
 
@@ -734,25 +698,16 @@ def dashboard():
 
         async function changeVolume(val) {
             document.getElementById('vol-value').innerText = val + "%";
-            await fetch('/api/audio', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({volume: val})
-            });
+            await fetch('/api/audio', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({volume: val}) });
         }
 
         async function changeAudioDevice(val) {
-            await fetch('/api/audio', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({device: val})
-            });
+            await fetch('/api/audio', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({device: val}) });
         }
 
         async function updateSystem() {
-            if (!confirm("Pull latest code and restart?")) return;
+            if (!confirm("Confirm remote restart?")) return;
             await fetch('/api/update-system', { method: 'POST' });
-            alert("System update initiated...");
         }
 
         function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
@@ -763,6 +718,7 @@ def dashboard():
 </body>
 </html>
     """
+
 
 
 def run_server(update_callback=None, port=3000):
