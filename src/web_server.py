@@ -173,10 +173,15 @@ def gen_frames():
     """MJPEG Streaming Generator"""
     import time
     while True:
-        if latest_screenshot:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + latest_screenshot + b'\r\n')
-        time.sleep(0.08) # ~12fps max
+        try:
+            if latest_screenshot:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + latest_screenshot + b'\r\n')
+            time.sleep(0.08) # ~12fps max
+        except GeneratorExit:
+            break
+        except Exception:
+            break
 
 @app.route('/api/stream')
 @login_required
@@ -835,13 +840,15 @@ def dashboard():
         setInterval(refresh, 1000);
         refresh();
 
-        // Connection Guard: Restarts mirror if it drops
-        setInterval(() => {
-            const img = document.getElementById('live-monitor');
-            if (img && (!img.complete || img.naturalWidth === 0)) {
-                img.src = "/api/stream?v=" + Date.now();
-            }
-        }, 3000);
+        // Handle Mirror Errors Gracefully instead of Polling
+        const liveMonitor = document.getElementById('live-monitor');
+        if (liveMonitor) {
+            liveMonitor.onerror = function() {
+                setTimeout(() => {
+                    this.src = "/api/stream?retry=" + Date.now();
+                }, 4000);
+            };
+        }
     </script>
 </body>
 </html>
