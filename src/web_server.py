@@ -555,6 +555,7 @@ def dashboard():
                 <h1>Kiosk Control Center</h1>
             </div>
             <div class="header-actions">
+                <span id="api-status" style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e; margin-right: 8px;"></span>
                 <span style="font-size: 0.7rem; color: var(--text-secondary); margin-right: 12px;">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
                 <button class="btn btn-danger" style="background: rgba(255, 62, 94, 0.05); color: #ff3e5e; font-size: 0.65rem;" onclick="rebootSystem()">REBOOT HW</button>
                 <button class="btn" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);" onclick="updateSystem()">UPDATE & RESTART</button>
@@ -643,31 +644,49 @@ def dashboard():
         async function refresh() {
             try {
                 const res = await fetch('/api/status');
+                if (!res.ok) throw new Error("API_DOWN");
                 const data = await res.json();
                 
-                document.getElementById('ip-addr').innerText = data.system.ip;
-                document.getElementById('idle-display').innerText = data.config.idle || "NOT_SET";
+                document.getElementById('api-status').style.background = "#22c55e";
+                document.getElementById('api-status').style.boxShadow = "0 0 10px #22c55e";
+
+                if (data.system && data.system.ip) {
+                    document.getElementById('ip-addr').innerText = data.system.ip;
+                }
                 
+                if (data.config) {
+                    document.getElementById('idle-display').innerText = data.config.idle || "NOT_SET";
+                    renderGrid(data.config, data.current_playing);
+                }
+
                 if (data.audio) {
-                    document.getElementById('vol-slider').value = data.audio.volume;
-                    document.getElementById('vol-value').innerText = Math.round(data.audio.volume) + "%";
-                        const select = document.getElementById('audio-out');
-                        if (data.audio.devices.length > 0) {
-                            const currentVal = select.value || data.config.audio.device;
-                            select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
-                        }
-                        updateVUMeter(data.audio.volume);
+                    document.getElementById('vol-slider').value = data.audio.volume || 100;
+                    document.getElementById('vol-value').innerText = Math.round(data.audio.volume || 100) + "%";
+                    const select = document.getElementById('audio-out');
+                    if (data.audio.devices && data.audio.devices.length > 0) {
+                        const currentVal = select.value || (data.config && data.config.audio ? data.config.audio.device : "");
+                        select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
                     }
-                renderGrid(data.config, data.current_playing);
-                renderLibrary(data.media);
-            } catch(e) {}
+                    updateVUMeter(data.audio.volume || 0);
+                }
+                
+                if (data.media) {
+                    renderLibrary(data.media);
+                }
+            } catch(e) {
+                console.error("Refresh Error:", e);
+                document.getElementById('api-status').style.background = "#ff3e5e";
+                document.getElementById('api-status').style.boxShadow = "0 0 10px #ff3e5e";
+            }
         }
 
         function renderGrid(config, currentPlaying) {
             const grid = document.getElementById('key-grid');
+            if (!grid) return;
             let html = '';
             for (let i = 1; i <= 9; i++) {
-                const file = config.mappings[i];
+                // Ensure we check for BOTH number and string keys
+                const file = config.mappings[i] || config.mappings[String(i)];
                 const isPlaying = String(currentPlaying) === String(i);
                 html += `
                     <div class="key-slot ${file ? 'active' : ''} ${isPlaying ? 'is-playing' : ''}" onclick="startMapping(${i})">
