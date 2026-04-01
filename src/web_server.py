@@ -344,56 +344,82 @@ def dashboard():
     <script>
         let selFile = null;
         let pKey = null;
-        let lastLogCount = 0;
+        let lastState = { media: "", mappings: "", idle: "", playing: "" };
 
         async function fetchStatus() {
-            fetchSnap();
             try {
                 const r = await fetch('/api/status');
                 if(!r.ok) throw 1;
                 const d = await r.json();
+                
+                const curState = JSON.stringify({
+                    media: d.media.join(','),
+                    mappings: JSON.stringify(d.config.mappings),
+                    idle: d.config.idle,
+                    playing: d.current_playing
+                });
+
+                if (curState === lastState_str) {
+                    // No change in core data, don't re-render list/matrix
+                } else {
+                    lastState_str = curState;
+                    updateUI(d);
+                }
+
                 document.getElementById('api-status').style.background = "#22c55e";
                 document.getElementById('ip-addr').innerText = d.system.ip;
-                document.getElementById('idle-lbl').innerText = d.config.idle || "None";
-                
-                // Mappings
-                const m = document.getElementById('matrix');
-                m.innerHTML = '';
-                for(let i=1; i<=9; i++) {
-                    const f = d.config.mappings[i] || d.config.mappings[String(i)] || '';
-                    const play = String(d.current_playing) === String(i) ? 'playing' : '';
-                    m.innerHTML += `<div class="slot ${play}" onclick="mapReq(${i})"><span class="slot-num">${i}</span><span class="slot-file">${f||'—'}</span></div>`;
-                }
-
-                // Library (Using static icons to prevent flickering/reloading lag)
-                const l = document.getElementById('mlist');
-                l.innerHTML = d.media.map(f => `
-                    <div class="media-item ${selFile===f?'selected':''}" onclick="sel('${f}')">
-                        <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:var(--accent);">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-                        </div>
-                        <span style="font-size:0.8rem; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f}</span>
-                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="del('${f}', event)">X</button>
-                    </div>
-                `).join('');
-
-                // Audio
-                document.getElementById('vol').value = d.audio.volume || 100;
-                document.getElementById('vol-lbl').innerText = Math.round(d.audio.volume||100) + "%";
-                const selDev = document.getElementById('audio-out');
-                if (d.audio.devices.length > 0 && selDev.options.length === 0) {
-                    selDev.innerHTML = d.audio.devices.map(dev => `<option value="${dev}" ${dev===d.config.audio.device?'selected':''}>${dev}</option>`).join('');
-                }
-                
-
-                
             } catch(e) {
                 document.getElementById('api-status').style.background = "#ff3e5e";
             }
         }
+        
+        let lastState_str = "";
+        function updateUI(d) {
+            document.getElementById('idle-lbl').innerText = d.config.idle || "None";
+            
+            // Mappings (Matrix Grid)
+            const m = document.getElementById('matrix');
+            m.innerHTML = '';
+            for(let i=1; i<=9; i++) {
+                const f = d.config.mappings[i] || d.config.mappings[String(i)] || '';
+                const play = String(d.current_playing) === String(i) ? 'playing' : '';
+                m.innerHTML += `<div class="slot ${play}" onclick="mapReq(${i})"><span class="slot-num">${i}</span><span class="slot-file">${f||'—'}</span></div>`;
+            }
 
+            // Library (Media List)
+            const l = document.getElementById('mlist');
+            l.innerHTML = d.media.map(f => `
+                <div class="media-item ${selFile===f?'selected':''}" onclick="sel('${f}')">
+                    <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:var(--accent);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                    </div>
+                    <span style="font-size:0.8rem; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f}</span>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="del('${f}', event)">X</button>
+                </div>
+            `).join('');
+
+            // Audio
+            document.getElementById('vol').value = d.audio.volume || 100;
+            document.getElementById('vol-lbl').innerText = Math.round(d.audio.volume||100) + "%";
+            const selDev = document.getElementById('audio-out');
+            if (d.audio.devices.length > 0 && selDev.options.length === 0) {
+                selDev.innerHTML = d.audio.devices.map(dev => `<option value="${dev}" ${dev===d.config.audio.device?'selected':''}>${dev}</option>`).join('');
+            }
+        }
+
+        // SMOOTH SNAPSHOT: Use an off-screen buffer to prevent flickering
+        const bufferImg = new Image();
+        let isFetching = false;
         async function fetchSnap() {
-            document.getElementById('live-img').src = "/api/snapshot?_t=" + Date.now();
+            if (isFetching) return;
+            isFetching = true;
+            const newSrc = "/api/snapshot?_t=" + Date.now();
+            bufferImg.src = newSrc;
+            bufferImg.onload = () => {
+                document.getElementById('live-img').src = newSrc;
+                isFetching = false;
+            };
+            bufferImg.onerror = () => { isFetching = false; };
         }
 
         function sel(f) { selFile = f; fetchStatus(); }
@@ -444,9 +470,8 @@ def dashboard():
         // Initial status pull
         fetchStatus();
         
-        // Auto-Monitor: Refresh the video feed separately so it's not "laggy"
-        // but keep it at a reasonable speed (2fps) to avoid browser overhead.
-        setInterval(fetchSnap, 500); 
+        // Auto-Monitor: High-speed (10fps) with NO flickering via buffer
+        setInterval(fetchSnap, 100); 
     </script>
 </body>
 </html>"""
