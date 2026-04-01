@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 
 # Disable verbose logging to keep terminal clean
 log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
+log.setLevel(logging.INFO) # Show requests for debugging
 
 app = Flask(__name__)
 # Use a consistent secret key for sessions
@@ -652,18 +652,20 @@ def dashboard():
 
                 if (data.system && data.system.ip) {
                     document.getElementById('ip-addr').innerText = data.system.ip;
+                } else {
+                    document.getElementById('ip-addr').innerText = "DISCONNECTED";
                 }
                 
                 if (data.config) {
                     document.getElementById('idle-display').innerText = data.config.idle || "NOT_SET";
-                    renderGrid(data.config, data.current_playing);
+                    renderGrid(data.config, data.current_playing || "idle");
                 }
 
                 if (data.audio) {
                     document.getElementById('vol-slider').value = data.audio.volume || 100;
                     document.getElementById('vol-value').innerText = Math.round(data.audio.volume || 100) + "%";
                     const select = document.getElementById('audio-out');
-                    if (data.audio.devices && data.audio.devices.length > 0) {
+                    if (select && data.audio.devices && data.audio.devices.length > 0) {
                         const currentVal = select.value || (data.config && data.config.audio ? data.config.audio.device : "");
                         select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
                     }
