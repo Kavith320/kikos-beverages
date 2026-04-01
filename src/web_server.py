@@ -356,6 +356,7 @@ def dashboard():
         let lastLogCount = 0;
 
         async function fetchStatus() {
+            fetchSnap();
             try {
                 const r = await fetch('/api/status');
                 if(!r.ok) throw 1;
@@ -447,9 +448,8 @@ def dashboard():
             return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
         }
 
-        // POLLING LOOP - Separate UI state and Snapshot to avoid blocking
-        setInterval(fetchStatus, 800);
-        setInterval(fetchSnap, 300); // 3fps is plenty for a dashboard mirror and won't exhaust threads
+        // DELETED AUTO-POLLING: Dashboard only refreshes snapshot and status after user actions.
+        // fetchStatus() now handles the monitor mirror too.
         fetchStatus();
     </script>
 </body>

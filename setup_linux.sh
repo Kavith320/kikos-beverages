@@ -8,7 +8,7 @@ echo "Setting up Smart Interactive Retail Display for Linux Mint (Debian/Ubuntu 
 # 1. Update and install required system dependencies
 echo "Installing necessary system packages (Python, venv, and Qt6 dependencies)..."
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip \
+sudo apt install -y python3 python3-venv python3-pip ffmpeg \
     libgl1 libglx-mesa0 libegl1 libxkbcommon-x11-0 \
     libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
     libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
