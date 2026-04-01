@@ -5,3 +5,4 @@ __pycache__/
 *.conf
 /videos/
 src/plugins/
+config/media_config.json
