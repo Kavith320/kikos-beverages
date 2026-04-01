@@ -276,7 +276,9 @@ def dashboard():
         .slot { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
         .slot.playing { border-color: var(--accent); background: rgba(0, 212, 255, 0.1); }
         .slot-num { font-size: 1.2rem; font-weight: bold; color: var(--accent); display: block; }
-        .slot-file { font-size: 0.7rem; color: var(--text-secondary); word-break: break-all; }
+        .slot-file { font-size: 0.7rem; color: var(--text-secondary); word-break: break-all; margin-top:4px; display:block; }
+        .slot-clear { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.05); color: var(--danger); display: grid; place-items: center; font-size: 10px; opacity: 0.5; transition: 0.2s; }
+        .slot-clear:hover { opacity: 1; background: rgba(255, 62, 94, 0.2); }
         
         /* Media List */
         .media-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
@@ -429,12 +431,18 @@ def dashboard():
             for(let i=1; i<=9; i++) {
                 const f = d.config.mappings[i] || d.config.mappings[String(i)] || '';
                 const play = String(d.current_playing) === String(i) ? 'playing' : '';
-                m.innerHTML += `<div class="slot ${play}" onclick="mapReq(${i})"><span class="slot-num">${i}</span><span class="slot-file">${f||'—'}</span></div>`;
+                m.innerHTML += `
+                    <div class="slot ${play}" onclick="mapReq(${i})" style="position:relative;">
+                        ${f ? `<div class="slot-clear" onclick="clearMap(event, ${i})">✕</div>` : ''}
+                        <span class="slot-num">${i}</span>
+                        <span class="slot-file">${f||'—'}</span>
+                    </div>
+                `;
             }
 
             // Library (Media List)
             const l = document.getElementById('mlist');
-            const mappedFiles = Object.values(d.config.mappings);
+            const mappedFiles = Object.values(d.config.mappings).filter(v => typeof v === 'string' && v.length > 0);
             l.innerHTML = d.media.map(f => {
                 const isIdle = d.config.idle === f;
                 const isMapped = mappedFiles.includes(f);
@@ -505,6 +513,14 @@ def dashboard():
             await xFetch('/api/update-mapping', {key: pKey, filename: selFile});
             document.getElementById('modal').style.display = 'none';
             fetchStatus();
+        }
+
+        async function clearMap(e, k) {
+            e.stopPropagation();
+            if(confirm('Clear slot '+k+'?')) {
+                await xFetch('/api/update-mapping', {key: k, filename: ""});
+                fetchStatus();
+            }
         }
 
         function sel(f) { selFile = f; fetchStatus(); }
