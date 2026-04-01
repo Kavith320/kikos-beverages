@@ -538,7 +538,7 @@ def dashboard():
             <div class="header-actions">
                 <span style="font-size: 0.7rem; color: var(--text-secondary); margin-right: 12px;">HOST: <span id="ip-addr" style="color: var(--accent);">--</span></span>
                 <button class="btn btn-danger" style="background: rgba(255, 62, 94, 0.05); color: #ff3e5e; font-size: 0.65rem;" onclick="rebootSystem()">REBOOT HW</button>
-                <button class="btn" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);" onclick="updateSystem()">APP RESTART</button>
+                <button class="btn" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);" onclick="updateSystem()">UPDATE & RESTART</button>
                 <button class="btn btn-accent" id="sync-btn" onclick="applyChanges()">APPLY SYNC</button>
                 <a href="/api/logout" class="btn btn-danger" style="padding: 10px;">ESC</a>
             </div>
