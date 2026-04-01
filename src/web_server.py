@@ -212,6 +212,13 @@ def clear_analytics():
         os.remove(ANALYTICS_PATH)
     return jsonify({"success": True})
 
+@app.route('/api/download-analytics')
+@login_required
+def download_analytics():
+    if os.path.exists(ANALYTICS_PATH):
+        return send_from_directory(os.path.dirname(ANALYTICS_PATH), os.path.basename(ANALYTICS_PATH), as_attachment=True)
+    return "No logs found", 404
+
 @app.route('/api/audio', methods=['POST'])
 @login_required
 def update_audio():
@@ -461,7 +468,10 @@ def dashboard():
                 BACK
             </button>
             <h2 style="margin:0">Playback Analytics</h2>
-            <button class="btn btn-danger" onclick="clearAnalytics()" style="padding:6px 12px; font-size:0.7rem;">CLEAR LOGS</button>
+            <div style="display:flex; gap:8px;">
+                <a href="/api/download-analytics" class="btn btn-accent" style="padding:6px 12px; font-size:0.7rem;">DOWNLOAD CSV</a>
+                <button class="btn btn-danger" onclick="clearAnalytics()" style="padding:6px 12px; font-size:0.7rem;">CLEAR LOGS</button>
+            </div>
         </div>
         <div style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.2); border-radius:12px;">
             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
