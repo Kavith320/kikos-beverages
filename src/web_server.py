@@ -282,8 +282,11 @@ def dashboard():
         .media-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .media-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; border-radius: 8px; cursor: pointer; position: relative; }
         .media-item:hover { background: rgba(255,255,255,0.05); }
-        .media-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.1); box-shadow: inset 0 0 10px rgba(0,212,255,0.1); }
+        .media-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.15); box-shadow: 0 0 15px var(--accent-glow); animation: breathe 2s infinite ease-in-out; }
         .media-item.is-idle { border-left: 4px solid #a855f7; background: rgba(168, 85, 247, 0.05); }
+        .media-item.is-mapped { border-left: 4px solid #22c55e; background: rgba(34, 197, 94, 0.05); }
+        
+        @keyframes breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.99); } }
         
         .ctx-menu { position: absolute; background: #1a1a24; border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; z-index: 1000; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 150px; }
         .ctx-item { padding: 8px 12px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
@@ -431,21 +434,31 @@ def dashboard():
 
             // Library (Media List)
             const l = document.getElementById('mlist');
+            const mappedFiles = Object.values(d.config.mappings);
             l.innerHTML = d.media.map(f => {
                 const isIdle = d.config.idle === f;
+                const isMapped = mappedFiles.includes(f);
+                let color = isIdle ? '#a855f7' : (isMapped ? '#22c55e' : 'var(--accent)');
+                let borderClass = isIdle ? 'is-idle' : (isMapped ? 'is-mapped' : '');
+                
                 return `
-                    <div class="media-item ${selFile===f?'selected':''} ${isIdle?'is-idle':''}" 
+                    <div class="media-item ${selFile===f?'selected':''} ${borderClass}" 
                          onclick="sel('${f}')" 
                          oncontextmenu="showCtx(event, '${f}')">
-                        <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:${isIdle?'#a855f7':'var(--accent)'};">
+                        <div style="width:34px; height:34px; background:rgba(255,255,255,0.05); border-radius:4px; display:grid; place-items:center; color:${color};">
                             ${isIdle ? 
                                 '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>' : 
-                                '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>'
+                                (isMapped ? 
+                                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>' :
+                                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>')
                             }
                         </div>
                         <div style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
-                            <span style="font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${isIdle?'#d8b4fe':'#fff'}">${f}</span>
-                            ${isIdle ? '<span style="font-size:0.6rem; color:#a855f7; font-weight:bold;">IDLE CONTENT</span>' : ''}
+                            <span style="font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff">${f}</span>
+                            <div style="display:flex; gap:8px;">
+                                ${isIdle ? '<span style="font-size:0.6rem; color:#a855f7; font-weight:bold;">IDLE</span>' : ''}
+                                ${isMapped ? '<span style="font-size:0.6rem; color:#22c55e; font-weight:bold;">MAPPED</span>' : ''}
+                            </div>
                         </div>
                     </div>
                 `;
