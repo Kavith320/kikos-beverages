@@ -606,8 +606,8 @@ def dashboard():
                 document.getElementById('idle-display').innerText = data.config.idle || "EMPTY";
                 
                 if (data.audio) {
-                    document.getElementById('vol-slider').value = data.audio.volume * 100;
-                    document.getElementById('vol-value').innerText = Math.round(data.audio.volume * 100) + "%";
+                    document.getElementById('vol-slider').value = data.audio.volume;
+                    document.getElementById('vol-value').innerText = Math.round(data.audio.volume) + "%";
                     
                     const select = document.getElementById('audio-out');
                     if (data.audio.devices.length > 0) {
