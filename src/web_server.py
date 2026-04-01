@@ -52,6 +52,7 @@ on_update_callback = None
 latest_screenshot = None
 current_playing = "idle"
 audio_devices = []
+current_screens = []
 current_volume = 100
 
 def allowed_file(filename):
@@ -112,13 +113,18 @@ def get_ip():
 @app.route('/api/status', methods=['GET'])
 @login_required
 def get_status():
-    all_files = sorted([f for f in os.listdir(VIDEO_FOLDER) if allowed_file(f)])
+    files = [f for f in os.listdir(VIDEO_FOLDER) if allowed_file(f)]
+    config = load_config()
     return jsonify({
-        "config": load_config(),
-        "media": all_files,
+        "media": files,
+        "config": config,
         "current_playing": current_playing,
-        "audio": {"devices": audio_devices, "volume": current_volume},
-        "system": {"os": "Linux" if os.name != 'nt' else "Windows", "ip": get_ip()}
+        "audio_devices": audio_devices,
+        "screens": current_screens,
+        "system": {
+            "ip": get_ip(),
+            "time": time.ctime()
+        }
     })
 
 # Snapshot API to fix thread exhaustion!
@@ -235,6 +241,18 @@ def update_audio():
         if device is not None: on_update_callback(f"TRIGGER:device:{device}")
         return jsonify({"success": True})
     return jsonify({"error": "GUI not connected"}), 503
+
+@app.route('/api/display', methods=['POST'])
+@login_required
+def update_display():
+    name = request.json.get('name')
+    config = load_config()
+    config["display"] = name
+    save_config(config)
+    if on_update_callback:
+        on_update_callback(f"TRIGGER:display:{name}")
+        return jsonify({"success": True})
+    return jsonify({"success": True})
 
 @app.route('/api/reboot', methods=['POST'])
 @login_required
@@ -457,11 +475,22 @@ def dashboard():
             </div>
             
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-border);">
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 8px;">
-                    <span>Volume <span id="vol-lbl">100%</span></span>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                        <span>Volume <span id="vol-lbl">100%</span></span>
+                    </div>
+                    <input type="range" id="vol" min="0" max="100" style="width: 100%;" onchange="setAudio({volume: this.value})">
+                    
+                    <div style="margin-top:8px;">
+                        <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase;">Audio Output</span>
+                        <select id="audio-out" style="width:100%; margin-top:4px; padding:8px; background:#000; color:#fff; border:1px solid var(--glass-border); border-radius:8px;" onchange="setAudio({device: this.value})"></select>
+                    </div>
+
+                    <div style="margin-top:8px;">
+                        <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase;">Display Monitor</span>
+                        <select id="disp-out" style="width:100%; margin-top:4px; padding:8px; background:#000; color:#fff; border:1px solid var(--glass-border); border-radius:8px;" onchange="setDisplay(this.value)"></select>
+                    </div>
                 </div>
-                <input type="range" id="vol" min="0" max="100" style="width: 100%;" onchange="setAudio({volume: this.value})">
-                <select id="audio-out" style="width:100%; margin-top:12px; padding:8px; background:#000; color:#fff; border:1px solid var(--glass-border); border-radius:8px;" onchange="setAudio({device: this.value})"></select>
             </div>
         </div>
     </div>
@@ -509,7 +538,7 @@ def dashboard():
     <script>
         let selFile = null;
         let pKey = null;
-        let lastState = { media: "", mappings: "", idle: "", playing: "" };
+        let lastState_str = "";
 
         async function fetchStatus() {
             try {
@@ -524,30 +553,24 @@ def dashboard():
                     playing: d.current_playing
                 });
 
-                if (curState === lastState_str) {
-                    // No change in core data, don't re-render list/matrix
-                } else {
+                if (curState !== lastState_str) {
                     lastState_str = curState;
                     updateUI(d);
                 }
 
-                document.getElementById('api-status').style.background = "#22c55e";
                 document.getElementById('ip-addr').innerText = d.system.ip;
-            } catch(e) {
-                document.getElementById('api-status').style.background = "#ff3e5e";
-            }
+            } catch(e) {}
         }
         
-        let lastState_str = "";
-        function updateUI(d) {
-            document.getElementById('idle-lbl').innerText = d.config.idle || "None";
+        function updateUI(cur) {
+            document.getElementById('idle-lbl').innerText = cur.config.idle || "None";
             
             // Mappings (Matrix Grid)
             const m = document.getElementById('matrix');
             m.innerHTML = '';
             for(let i=1; i<=9; i++) {
-                const f = d.config.mappings[i] || d.config.mappings[String(i)] || '';
-                const play = String(d.current_playing) === String(i) ? 'playing' : '';
+                const f = cur.config.mappings[i] || cur.config.mappings[String(i)] || '';
+                const play = String(cur.current_playing) === String(i) ? 'playing' : '';
                 m.innerHTML += `
                     <div class="slot ${play}" onclick="mapReq(${i})" style="position:relative;">
                         ${f ? `<div class="slot-clear" onclick="clearMap(event, ${i})">✕</div>` : ''}
@@ -559,9 +582,9 @@ def dashboard():
 
             // Library (Media List)
             const l = document.getElementById('mlist');
-            const mappedFiles = Object.values(d.config.mappings).filter(v => typeof v === 'string' && v.length > 0);
-            l.innerHTML = d.media.map(f => {
-                const isIdle = d.config.idle === f;
+            const mappedFiles = Object.values(cur.config.mappings).filter(v => typeof v === 'string' && v.length > 0);
+            l.innerHTML = cur.media.map(f => {
+                const isIdle = cur.config.idle === f;
                 const isMapped = mappedFiles.includes(f);
                 let color = isIdle ? '#a855f7' : (isMapped ? '#22c55e' : 'var(--accent)');
                 let borderClass = isIdle ? 'is-idle' : (isMapped ? 'is-mapped' : '');
@@ -590,11 +613,21 @@ def dashboard():
             }).join('');
 
             // Audio
-            document.getElementById('vol').value = d.audio.volume || 100;
-            document.getElementById('vol-lbl').innerText = Math.round(d.audio.volume||100) + "%";
-            const selDev = document.getElementById('audio-out');
-            if (d.audio.devices.length > 0 && selDev.options.length === 0) {
-                selDev.innerHTML = d.audio.devices.map(dev => `<option value="${dev}" ${dev===d.config.audio.device?'selected':''}>${dev}</option>`).join('');
+            document.getElementById('vol').value = (cur.config.audio?.volume || 1) * 100;
+            document.getElementById('vol-lbl').innerText = Math.round((cur.config.audio?.volume || 1) * 100) + "%";
+            
+            if(cur.audio_devices) {
+                const sel = document.getElementById('audio-out');
+                const oldVal = sel.value;
+                sel.innerHTML = cur.audio_devices.map(d => `<option value="${d}">${d}</option>`).join('');
+                sel.value = cur.config.audio?.device || oldVal;
+            }
+            
+            if(cur.screens) {
+                const sel = document.getElementById('disp-out');
+                const oldVal = sel.value;
+                sel.innerHTML = `<option value="">Default Display</option>` + cur.screens.map(s => `<option value="${s}">${s}</option>`).join('');
+                sel.value = cur.config.display || oldVal;
             }
         }
 
@@ -715,6 +748,11 @@ def dashboard():
 
         async function setAudio(payload) {
             await xFetch('/api/audio', payload);
+            fetchStatus();
+        }
+
+        async function setDisplay(name) {
+            await xFetch('/api/display', {name: name});
             fetchStatus();
         }
 

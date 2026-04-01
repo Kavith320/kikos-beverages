@@ -27,9 +27,10 @@ class SmartDisplayApp(QMainWindow):
         self.assets_folder = os.path.join(base_dir, "assets")
         self.config_path = os.path.join(base_dir, "config", "media_config.json")
         
-        # Audio/State Consistency
+        # Audio/Display State Consistency
         self.current_volume = 1.0 # 0.0 to 1.0
         self.target_audio_device = ""
+        self.target_display = "" # Display Name
         
         self.stacked_widget = QStackedWidget(self)
         self.setCentralWidget(self.stacked_widget)
@@ -105,13 +106,19 @@ class SmartDisplayApp(QMainWindow):
         self.players = {}
         
         # Load Config
-        if os.path.exists(self.config_path):
-            with open(self.config_path, 'r') as f:
-                config = json.load(f)
-        else:
-            config = {"idle": "idle.mp4", "mappings": {}}
-        
-        # Save to self for global access
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r') as f:
+                    config = json.load(f)
+            else:
+                config = {"idle": "idle.mp4", "mappings": {}, "audio": {"volume": 1.0, "device": ""}, "display": ""}
+        except: 
+            config = {"idle": "idle.mp4", "mappings": {}, "audio": {"volume": 1.0, "device": ""}, "display": ""}
+
+        self.target_audio_device = config.get("audio", {}).get("device", "")
+        self.target_display = config.get("display", "")
+        self._set_screen_by_name(self.target_display)
+
         self.config = config
         self.mappings = config.get("mappings", {})
         idle_file = config.get("idle", "idle.mp4")
@@ -119,7 +126,6 @@ class SmartDisplayApp(QMainWindow):
         # Apply Base Audio State from Config
         audio_conf = self.config.get("audio", {})
         self.current_volume = audio_conf.get("volume", 1.0)
-        self.target_audio_device = audio_conf.get("device", "")
         
         # 0. Always create/re-create Logo screen
         self._create_logo_screen()
@@ -138,27 +144,26 @@ class SmartDisplayApp(QMainWindow):
         web_server.audio_devices = [d.description() for d in QMediaDevices.audioOutputs()]
 
     @Slot(str)
-    def _on_remote_config_update(self, signal_data=""):
-        """Called when web signals a config change, manual trigger, or audio update."""
-        if signal_data.startswith("TRIGGER:"):
-            parts = signal_data.split(":")
-            cmd = parts[1]
-            val = parts[2] if len(parts) > 2 else None
-            
-            if cmd == "idle": self.switch_to_screen("idle")
-            elif cmd == "volume" and val: self._set_global_volume(float(val))
-            elif cmd == "device" and val: self._set_audio_device(val)
-            elif cmd == "RESTART": 
-                print("[SYSTEM] Full process restart signal received.")
-                QApplication.exit(8) # Signal code 8 for bash restart
-                return
-            else: self.switch_to_screen(f"custom_{cmd}")
-            return
-
-        print("[REMOTE] Configuration reload requested...")
+    def _on_remote_config_update(self, raw_cmd):
+        print(f"[REMOTE] Config update signal received: {raw_cmd}")
+        # Full reload and hardware check
+        self._refresh_audio_devices()
+        self._refresh_display_devices()
         self._load_and_setup_media()
-        if self.current_screen_id != "logo":
-            self.switch_to_screen("idle")
+        
+        # Immediate actions if command was specific
+        if raw_cmd == "TRIGGER:RESTART":
+            print("[SYSTEM] Restarting via Remote Command...")
+            QApplication.exit(8) # Survivor mode exit code
+        elif raw_cmd.startswith("TRIGGER:device:"):
+            # Audio device updated - already handled by _load_and_setup_media
+            pass
+        elif raw_cmd.startswith("TRIGGER:volume:"):
+            vol = float(raw_cmd.split(":")[-1])
+            self._set_global_volume(vol)
+        elif raw_cmd.startswith("TRIGGER:"):
+            key = raw_cmd.split(":")[-1]
+            self.switch_to_screen(f"custom_{key}")
 
     def _refresh_audio_devices(self):
         """Broadcasts available audio hardware to the web console."""
@@ -166,6 +171,33 @@ class SmartDisplayApp(QMainWindow):
         devices = QMediaDevices.audioOutputs()
         web_server.audio_devices = [d.description() for d in devices]
         
+    def _refresh_display_devices(self):
+        """Update web server with current screen names."""
+        screens = QApplication.screens()
+        screen_names = [s.name() for s in screens]
+        import web_server
+        web_server.current_screens = screen_names
+
+    def _set_screen_by_name(self, name):
+        """Moves this window to the specified screen geometry."""
+        if not name: return
+        screens = QApplication.screens()
+        target = None
+        for s in screens:
+            if s.name() == name:
+                target = s
+                break
+        
+        if target:
+            print(f"[DISPLAY] Moving UI to: {name}")
+            # If we are in fullscreen, we must move then show again
+            self.setParent(None) # Detach
+            self.move(target.geometry().topLeft())
+            self.showFullScreen()
+        else:
+            print(f"[DISPLAY] Screen not found: {name}")
+            self.showFullScreen() # Default
+
     def _set_global_volume(self, level):
         """Sets the volume (0.0 to 1.0) across all players."""
         self.current_volume = level
