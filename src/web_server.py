@@ -82,24 +82,39 @@ def api_logout():
     session.pop('logged_in', None)
     return redirect(url_for('login_page'))
 
+def get_ip():
+    """Robust local IP detection without external dependencies"""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "127.0.0.1"
+
 @app.route('/api/status', methods=['GET'])
 @login_required
 def get_status():
-    config = load_config()
-    all_files = [f for f in os.listdir(VIDEO_FOLDER) if allowed_file(f)]
-    return jsonify({
-        "config": config,
-        "media": all_files,
-        "current_playing": current_playing,
-        "audio": {
-            "devices": audio_devices,
-            "volume": current_volume
-        },
-        "system": {
-            "os": os.uname().sysname,
-            "ip": socket.gethostbyname(socket.gethostname())
-        }
-    })
+    try:
+        config = load_config()
+        all_files = sorted([f for f in os.listdir(VIDEO_FOLDER) if allowed_file(f)])
+        return jsonify({
+            "config": config,
+            "media": all_files,
+            "current_playing": current_playing,
+            "audio": {
+                "devices": audio_devices,
+                "volume": current_volume
+            },
+            "system": {
+                "os": "Linux" if os.name != 'nt' else "Windows",
+                "ip": get_ip()
+            }
+        })
+    except Exception as e:
+        print(f"[API ERROR] Status: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/upload', methods=['POST'])
 @login_required
@@ -223,15 +238,17 @@ def remove_mapping():
 @app.route('/api/reboot', methods=['POST'])
 @login_required
 def reboot_system():
-    """
-    Attempts to restart the entire PC (Linux System).
-    Note: Requires sudo reboot permissions for the user running the script.
-    """
     import subprocess
     try:
-        # Triggering a system reboot
-        # Usually requires 'sudo' in kiosk setups
-        subprocess.Popen(["sudo", "reboot"]) 
+        # Try different reboot methods known to work on various Linux flavors
+        # and Mac dev environments
+        print("[SYSTEM] Attempting Hardware Reboot...")
+        # Path 1: standard systemd
+        subprocess.Popen(["systemctl", "reboot"])
+        # Path 2: legacy sudo reboot (often with NOPASSWD)
+        subprocess.Popen(["sudo", "reboot"])
+        # Path 3: direct reboot
+        subprocess.Popen(["reboot"])
         return jsonify({"success": True, "message": "System reboot sequence initiated"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -523,6 +540,8 @@ def dashboard():
 
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.9); } }
         
+        .vu-slot { flex: 1; background: #222; border-radius: 1px; transition: 0.1s; }
+        
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); display: none; place-items: center; z-index: 10000; }
         .modal-body { background: var(--surface); border: 1px solid var(--glass-border); padding: 32px; border-radius: 20px; text-align: center; max-width: 360px; }
 
@@ -584,9 +603,21 @@ def dashboard():
                 
                 <div class="audio-mini">
                     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
-                        <span style="font-size: 0.75rem; opacity: 0.6;">Output Gain</span>
+                        <span style="font-size: 0.75rem; opacity: 0.6; display: flex; align-items: center; gap: 8px;">
+                            <span id="mute-icon" onclick="toggleMute()" style="cursor:pointer; font-size: 1rem;">🔊</span>
+                            Output Gain
+                        </span>
                         <span id="vol-value" style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--accent); font-size: 0.9rem;">100%</span>
                     </div>
+                    
+                    <!-- NEW: VU Meter Segmented -->
+                    <div style="height: 12px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; display: flex; gap: 2px; margin-bottom: 12px; padding: 2px;">
+                        <div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div>
+                        <div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div>
+                        <div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div>
+                        <div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div><div class="vu-slot"></div>
+                    </div>
+
                     <input type="range" min="0" max="100" value="100" class="slider" id="vol-slider" oninput="changeVolume(this.value)">
                     <select id="audio-out" style="background:#000; color:#fff; border:1px solid var(--glass-border); padding:8px; border-radius:8px; width:100%; margin-top:10px; font-size:0.75rem;" onchange="changeAudioDevice(this.value)"></select>
                 </div>
@@ -620,12 +651,13 @@ def dashboard():
                 if (data.audio) {
                     document.getElementById('vol-slider').value = data.audio.volume;
                     document.getElementById('vol-value').innerText = Math.round(data.audio.volume) + "%";
-                    const select = document.getElementById('audio-out');
-                    if (data.audio.devices.length > 0) {
-                        const currentVal = select.value || data.config.audio.device;
-                        select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
+                        const select = document.getElementById('audio-out');
+                        if (data.audio.devices.length > 0) {
+                            const currentVal = select.value || data.config.audio.device;
+                            select.innerHTML = data.audio.devices.map(d => `<option value="${d}" ${d === currentVal ? 'selected' : ''}>${d}</option>`).join('');
+                        }
+                        updateVUMeter(data.audio.volume);
                     }
-                }
                 renderGrid(data.config, data.current_playing);
                 renderLibrary(data.media);
             } catch(e) {}
@@ -727,6 +759,42 @@ def dashboard():
 
         async function changeAudioDevice(val) {
             await fetch('/api/audio', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({device: val}) });
+        }
+
+        let isMuted = false;
+        let lastVol = 100;
+        function toggleMute() {
+            const slider = document.getElementById('vol-slider');
+            const icon = document.getElementById('mute-icon');
+            if (!isMuted) {
+                lastVol = slider.value;
+                changeVolume(0);
+                slider.value = 0;
+                icon.innerText = "🔇";
+                isMuted = true;
+            } else {
+                changeVolume(lastVol);
+                slider.value = lastVol;
+                icon.innerText = "🔊";
+                isMuted = false;
+            }
+        }
+
+        function updateVUMeter(vol) {
+            const slots = document.querySelectorAll('.vu-slot');
+            const activeCount = Math.floor((vol / 100) * slots.length);
+            slots.forEach((s, i) => {
+                if (i < activeCount) {
+                    let color = "#22c55e"; // Green
+                    if (i > slots.length * 0.6) color = "#eab308"; // Yellow
+                    if (i > slots.length * 0.85) color = "#ef4444"; // Red
+                    s.style.background = color;
+                    s.style.boxShadow = `0 0 8px ${color}66`;
+                } else {
+                    s.style.background = "#222";
+                    s.style.boxShadow = "none";
+                }
+            });
         }
 
         async function updateSystem() {
