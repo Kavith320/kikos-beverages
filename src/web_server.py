@@ -35,8 +35,11 @@ def login_required(f):
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VIDEO_FOLDER = os.path.join(BASE_DIR, "videos")
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "media_config.json")
+ANALYTICS_PATH = os.path.join(BASE_DIR, "config", "analytics.csv")
 ASSETS_FOLDER = os.path.join(BASE_DIR, "assets")
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'mkv', 'avi'}
+import csv
+from datetime import datetime
 
 # Ensure config directory exists!
 os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
@@ -71,6 +74,16 @@ def save_config(config):
         json.dump(config, f, indent=4)
     if on_update_callback:
         on_update_callback("")
+
+def log_playback(slot, filename):
+    try:
+        exists = os.path.exists(ANALYTICS_PATH)
+        with open(ANALYTICS_PATH, 'a', newline='') as f:
+            writer = csv.writer(f)
+            if not exists:
+                writer.writerow(["Timestamp", "Slot", "Filename"])
+            writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), slot, filename])
+    except: pass
 
 # --- API ENDPOINTS ---
 
@@ -168,10 +181,36 @@ def trigger_video():
     global current_playing
     key = request.json.get('key')
     current_playing = str(key)
+    
+    # Log analytics
+    config = load_config()
+    filename = config.get("mappings", {}).get(str(key), "unknown")
+    log_playback(f"Slot {key}", filename)
+
     if on_update_callback:
         on_update_callback(f"TRIGGER:{key}")
         return jsonify({"success": True})
     return jsonify({"error": "GUI not connected"}), 503
+
+@app.route('/api/analytics', methods=['GET'])
+@login_required
+def get_analytics():
+    data = []
+    if os.path.exists(ANALYTICS_PATH):
+        try:
+            with open(ANALYTICS_PATH, 'r') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)[-100:] # Last 100 entries
+                data.reverse()
+        except: pass
+    return jsonify(data)
+
+@app.route('/api/clear-analytics', methods=['POST'])
+@login_required
+def clear_analytics():
+    if os.path.exists(ANALYTICS_PATH):
+        os.remove(ANALYTICS_PATH)
+    return jsonify({"success": True})
 
 @app.route('/api/audio', methods=['POST'])
 @login_required
@@ -337,6 +376,10 @@ def dashboard():
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 GIT UPDATE
             </button>
+            <button class="btn" style="background:rgba(168, 85, 247, 0.1); color:#d8b4fe" onclick="showAnalytics()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                ANALYTICS
+            </button>
             <button class="btn btn-accent" onclick="xFetch('/api/restart-gui')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
                 APPLY & RESTART
@@ -347,7 +390,7 @@ def dashboard():
         </div>
     </header>
 
-    <div class="grid">
+    <div class="grid" id="main-dash">
         <div class="col">
             <div class="card" style="flex: 1.5;">
                 <h2>System Monitors</h2>
@@ -407,6 +450,32 @@ def dashboard():
                 <input type="range" id="vol" min="0" max="100" style="width: 100%;" onchange="setAudio({volume: this.value})">
                 <select id="audio-out" style="width:100%; margin-top:12px; padding:8px; background:#000; color:#fff; border:1px solid var(--glass-border); border-radius:8px;" onchange="setAudio({device: this.value})"></select>
             </div>
+        </div>
+    </div>
+
+    <!-- Analytics Page -->
+    <div id="analytics-page" class="card" style="display:none; flex:1; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <button class="btn" onclick="showMain()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                BACK
+            </button>
+            <h2 style="margin:0">Playback Analytics</h2>
+            <button class="btn btn-danger" onclick="clearAnalytics()" style="padding:6px 12px; font-size:0.7rem;">CLEAR LOGS</button>
+        </div>
+        <div style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.2); border-radius:12px;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                <thead style="position:sticky; top:0; background:var(--surface); box-shadow:0 1px 0 var(--glass-border);">
+                    <tr>
+                        <th style="padding:12px;">Time</th>
+                        <th style="padding:12px;">Trigger</th>
+                        <th style="padding:12px;">File</th>
+                    </tr>
+                </thead>
+                <tbody id="analytics-body" style="color:var(--text-secondary)">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -631,6 +700,37 @@ def dashboard():
         async function setAudio(payload) {
             await xFetch('/api/audio', payload);
             fetchStatus();
+        }
+
+        // Navigation
+        function showAnalytics() {
+            document.getElementById('main-dash').style.display = 'none';
+            document.getElementById('analytics-page').style.display = 'flex';
+            loadAnalytics();
+        }
+        function showMain() {
+            document.getElementById('main-dash').style.display = 'flex';
+            document.getElementById('analytics-page').style.display = 'none';
+        }
+
+        async function loadAnalytics() {
+            const r = await fetch('/api/analytics');
+            const d = await r.json();
+            const b = document.getElementById('analytics-body');
+            b.innerHTML = d.map(row => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.02)">
+                    <td style="padding:10px;">${row.Timestamp}</td>
+                    <td style="padding:10px;"><span style="color:var(--accent)">${row.Slot}</span></td>
+                    <td style="padding:10px; font-family:'JetBrains Mono';">${row.Filename}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" style="padding:20px; text-align:center;">No data recorded yet</td></tr>';
+        }
+
+        async function clearAnalytics() {
+            if(confirm('Clear all analytics logs?')) {
+                await xFetch('/api/clear-analytics');
+                loadAnalytics();
+            }
         }
 
         async function xFetch(url, body={}) {
