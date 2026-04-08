@@ -3,7 +3,9 @@ import os
 import json
 import socket
 import threading
-from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QStackedWidget, QGraphicsOpacityEffect, QFrame
+from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout, 
+                             QWidget, QStackedWidget, QGraphicsOpacityEffect, 
+                             QFrame, QGraphicsDropShadowEffect)
 from PySide6.QtCore import Qt, QUrl, QTimer, QPropertyAnimation, QPoint, QEasingCurve, Signal, Slot
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaDevices
@@ -35,22 +37,55 @@ class SmartDisplayApp(QMainWindow):
         self.stacked_widget = QStackedWidget(self)
         self.setCentralWidget(self.stacked_widget)
         
-        # IP Notification Widget (OSD)
+        # IP Notification Widget (OSD) - Smart Modern Design
         self.ip_box = QFrame(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
         self.ip_box.setObjectName("ip_notification")
-        self.ip_box.setFixedSize(400, 80)
+        self.ip_box.setFixedSize(450, 110)
         self.ip_box.setStyleSheet("""
             #ip_notification {
-                background-color: rgba(10, 10, 10, 240);
-                border: 3px solid #00d4ff;
-                border-radius: 15px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 rgba(25, 25, 35, 245), 
+                    stop:1 rgba(10, 10, 15, 255));
+                border: 2px solid qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                    stop:0 #00d4ff, 
+                    stop:0.5 #00ffff,
+                    stop:1 #00d4ff);
+                border-radius: 20px;
             }
         """)
         self.ip_box.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
+        # Add Drop Shadow for Premium Feel
+        shadow = QGraphicsDropShadowEffect(self.ip_box)
+        shadow.setBlurRadius(30)
+        shadow.setXOffset(0)
+        shadow.setYOffset(10)
+        shadow.setColor(Qt.GlobalColor.black)
+        self.ip_box.setGraphicsEffect(shadow)
+        
         ip_layout = QVBoxLayout(self.ip_box)
-        self.ip_label = QLabel("Detecting Network...")
-        self.ip_label.setStyleSheet("color: #00d4ff; font-family: 'Courier New'; font-weight: bold; font-size: 20px;")
+        ip_layout.setContentsMargins(0, 15, 0, 15)
+        ip_layout.setSpacing(2)
+
+        title_label = QLabel("REMOTE CONTROL ACCESS")
+        title_label.setStyleSheet("""
+            color: rgba(0, 212, 255, 220); 
+            font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; 
+            font-size: 10px; 
+            font-weight: 800; 
+            letter-spacing: 2.5px;
+        """)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ip_layout.addWidget(title_label)
+
+        self.ip_label = QLabel("Initializing Network...")
+        self.ip_label.setStyleSheet("""
+            color: #ffffff; 
+            font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; 
+            font-weight: 600; 
+            font-size: 26px;
+            letter-spacing: -0.5px;
+        """)
         self.ip_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ip_layout.addWidget(self.ip_label)
         self.ip_box.hide()
@@ -261,7 +296,7 @@ class SmartDisplayApp(QMainWindow):
 
     def show_ip_notification(self):
         ip_addr = self._get_local_ip()
-        self.ip_label.setText(f"ADMIN PORT: 3000\nURL: {ip_addr}:3000")
+        self.ip_label.setText(f"http://{ip_addr}:3000")
         screen_geo = self.screen().geometry()
         target_x = screen_geo.center().x() - (self.ip_box.width() // 2)
         start_pos = QPoint(target_x, -100)
