@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                              QWidget, QStackedWidget, QGraphicsOpacityEffect, 
                              QFrame, QGraphicsDropShadowEffect)
 from PySide6.QtCore import Qt, QUrl, QTimer, QPropertyAnimation, QPoint, QEasingCurve, Signal, Slot
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QGuiApplication
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaDevices
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
@@ -112,11 +112,16 @@ class SmartDisplayApp(QMainWindow):
         self.config_updated.connect(self._on_remote_config_update)
         # Refresh current hardware to server
         self._refresh_audio_devices()
+        self._refresh_display_devices()
         
-        # Setup Live Mirror Heartbeat (Capture at 30fps = 33ms)
+        # Listen for hardware changes (Hot-plugging monitors)
+        QGuiApplication.screenAdded.connect(self._refresh_display_devices)
+        QGuiApplication.screenRemoved.connect(self._refresh_display_devices)
+        
+        # Setup Live Mirror Heartbeat (Optimized for performance: 15fps = 66ms)
         self.mirror_timer = QTimer(self)
         self.mirror_timer.timeout.connect(self.capture_frame)
-        self.mirror_timer.start(33)
+        self.mirror_timer.start(66)
         
         # Boot sequence: Show logo
         if "logo" in self.screens:
@@ -196,6 +201,10 @@ class SmartDisplayApp(QMainWindow):
         elif raw_cmd.startswith("TRIGGER:volume:"):
             vol = float(raw_cmd.split(":")[-1])
             self._set_global_volume(vol)
+        elif raw_cmd.startswith("TRIGGER:display:"):
+            # Display changed
+            name = raw_cmd.split(":")[-1]
+            self._set_screen_by_name(name)
         elif raw_cmd.startswith("TRIGGER:"):
             key = raw_cmd.split(":")[-1]
             self.switch_to_screen(f"custom_{key}")
@@ -225,13 +234,15 @@ class SmartDisplayApp(QMainWindow):
         
         if target:
             print(f"[DISPLAY] Moving UI to: {name}")
-            # If we are in fullscreen, we must move then show again
-            self.setParent(None) # Detach
+            # Robust move: stop fullscreen, move, then re-fullscreen
+            self.showNormal()
+            self.setParent(None) 
+            self.setGeometry(target.geometry())
             self.move(target.geometry().topLeft())
             self.showFullScreen()
         else:
             print(f"[DISPLAY] Screen not found: {name}")
-            self.showFullScreen() # Default
+            self.showFullScreen() 
 
     def _set_global_volume(self, level):
         """Sets the volume (0.0 to 1.0) across all players."""

@@ -16,6 +16,7 @@ export XAUTHORITY=${XAUTHORITY:-/home/$USER/.Xauthority}
 # Fix for Intel iHD_drv_video.so init failed: Fallback to stable software drivers
 export LIBVA_DRIVER_NAME=i965
 export QT_VIDEO_BACKEND=ffmpeg
+export QSG_RHI_BACKEND=opengl
 
 # FFmpeg analytical depth for H.264 stability
 export FFMPEG_ANALYZEDURATION=10000000
