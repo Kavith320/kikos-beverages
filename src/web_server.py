@@ -422,7 +422,11 @@ def dashboard():
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
                 <span>APPLY & RESTART</span>
             </button>
-            <a href="/api/logout" class="btn btn-danger" title="Exit to Login">
+            <button class="btn btn-danger" style="background:rgba(255, 62, 94, 0.1);" onclick="if(confirm('FULL HARDWARE RESTART? System will be offline for 1-2 mins.')) xFetch('/api/reboot')" title="Reboot Entire PC">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                <span>REBOOT HW</span>
+            </button>
+            <a href="/api/logout" class="btn btn-danger" title="Exit to Login" style="background:transparent; border:1px solid rgba(255, 62, 94, 0.3)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             </a>
         </div>
