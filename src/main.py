@@ -3,6 +3,9 @@ import os
 import json
 import socket
 import threading
+import time
+import serial
+import serial.tools.list_ports
 from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout, 
                              QWidget, QStackedWidget, QGraphicsOpacityEffect, 
                              QFrame, QGraphicsDropShadowEffect)
@@ -130,6 +133,10 @@ class SmartDisplayApp(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.screens["logo"])
             self.current_screen_id = "logo"
             QTimer.singleShot(2500, self._start_logo_fade)
+            
+        # 4. Start Hardware Serial Listener Thread
+        self.serial_thread = threading.Thread(target=self._serial_listener, daemon=True)
+        self.serial_thread.start()
 
     def _load_and_setup_media(self):
         """Loads configuration and populates the stacked widget."""
@@ -297,6 +304,47 @@ class SmartDisplayApp(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.black_overlay.setGeometry(0, 0, self.width(), self.height())
+        self.setFocus() # Ensure focus stays on main window for keyboard events
+
+    def _serial_listener(self):
+        """Background thread to listen for ESP32/Hardware triggers via USB."""
+        print("[HARDWARE] Serial Listener Started. Looking for devices...")
+        ser = None
+        while True:
+            try:
+                if not ser:
+                    # Automatically find the ESP32/Arduino port
+                    ports = serial.tools.list_ports.comports()
+                    target_port = None
+                    for p in ports:
+                        if "usb" in p.device.lower() or "acm" in p.device.lower() or "ttyusb" in p.device.lower():
+                            target_port = p.device
+                            break
+                    
+                    if target_port:
+                        print(f"[HARDWARE] Attempting connection to: {target_port}")
+                        ser = serial.Serial(target_port, 115200, timeout=1)
+                        print(f"[HARDWARE] Connected to {target_port}")
+                    else:
+                        time.sleep(5) # Wait and try again
+                        continue
+
+                if ser.in_waiting > 0:
+                    line = ser.readline().decode('utf-8').strip()
+                    if not line: continue
+                    print(f"[HARDWARE] Signal Received: {line}")
+                    
+                    # Process the signal (Expected '1', '2', etc.)
+                    if line in self.mappings:
+                        self.config_updated.emit(f"TRIGGER:{line}")
+                    elif line == "0":
+                        self.config_updated.emit("TRIGGER:0")
+                        
+            except Exception as e:
+                print(f"[HARDWARE] Serial error: {e}")
+                ser = None # Reset connection
+                time.sleep(2)
+            time.sleep(0.1)
 
     def _get_local_ip(self):
         try:
@@ -453,10 +501,19 @@ class SmartDisplayApp(QMainWindow):
         if self.current_screen_id == "logo": return
             
         key_text = event.text()
+        print(f"[DEBUG] Key Pressed: '{key_text}' (Code: {event.key()})")
+        
+        # 1. Handle Direct Mappings (1-9)
         if key_text in self.mappings:
+            print(f"[TRIGGER] Keyboard match: {key_text}")
             self.switch_to_screen(f"custom_{key_text}")
-        elif event.key() == Qt.Key.Key_0 or event.key() == Qt.Key.Key_Space:
+            
+        # 2. Handle Idle Returns (0 or Space)
+        elif event.key() == Qt.Key.Key_0 or event.key() == Qt.Key.Key_Space or key_text == "0":
+            print("[TRIGGER] Keyboard return to idle")
             self.switch_to_screen("idle")
+            
+        # 3. Handle System Keys
         elif event.key() == Qt.Key.Key_Escape:
             self.close()
 
