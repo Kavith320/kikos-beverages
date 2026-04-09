@@ -197,10 +197,8 @@ def trigger_video():
     key = request.json.get('key')
     current_playing = str(key)
     
-    # Log analytics
-    config = load_config()
-    filename = config.get("mappings", {}).get(str(key), "unknown")
-    log_playback(f"Slot {key}", filename)
+    # Log analytics (Now handled by main.py to cover Hardware/Keyboard triggers)
+    # log_playback(f"Slot {key}", filename)
 
     if on_update_callback:
         on_update_callback(f"TRIGGER:{key}")

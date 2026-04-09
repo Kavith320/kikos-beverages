@@ -453,11 +453,17 @@ class SmartDisplayApp(QMainWindow):
                 self.players[self.current_screen_id].setPosition(0)
             self.players[self.current_screen_id].play()
             
-        # Update Web Server State
+        # Update Web Server State & Log Analytics
         import web_server
         # Strip prefixes for cross-system syncing
         clean_id = self.current_screen_id.replace("custom_", "")
         web_server.current_playing = clean_id
+        
+        # Log to Analytics if it's a product trigger (not idle or logo)
+        if self.current_screen_id.startswith("custom_"):
+            filename = self.mappings.get(clean_id, "unknown")
+            print(f"[ANALYTICS] Logging playback: Slot {clean_id} -> {filename}")
+            web_server.log_playback(f"Slot {clean_id}", filename)
             
         self.fade_anim = QPropertyAnimation(self.overlay_opacity, b"opacity")
         self.fade_anim.setDuration(400)
