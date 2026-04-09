@@ -115,8 +115,10 @@ class SmartDisplayApp(QMainWindow):
         self._refresh_display_devices()
         
         # Listen for hardware changes (Hot-plugging monitors)
-        QGuiApplication.screenAdded.connect(self._refresh_display_devices)
-        QGuiApplication.screenRemoved.connect(self._refresh_display_devices)
+        app_inst = QApplication.instance()
+        if app_inst:
+            app_inst.screenAdded.connect(self._refresh_display_devices)
+            app_inst.screenRemoved.connect(self._refresh_display_devices)
         
         # Setup Live Mirror Heartbeat (Optimized for performance: 15fps = 66ms)
         self.mirror_timer = QTimer(self)
